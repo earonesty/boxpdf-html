@@ -83,6 +83,26 @@ describe("htmlToBoxpdf", () => {
     });
   });
 
+  it("maps border-collapse to collapsed table cell borders", () => {
+    const result = htmlToBoxpdf(
+      `<style>table{width:200px;border-collapse:collapse}td{padding:6px;border:1px solid #ccc}</style>
+       <table><tr><td>A</td><td>B</td></tr><tr><td>C</td><td>D</td></tr></table>`,
+      { font, width: 320 }
+    );
+    const tableNode = result.nodes[0];
+    if (tableNode?.kind !== "vstack") throw new Error("expected table");
+    const firstRow = tableNode.children[0];
+    if (firstRow?.kind !== "hstack") throw new Error("expected row");
+    const firstCell = firstRow.children[0];
+    if (firstCell?.kind !== "vstack") throw new Error("expected cell");
+    expect(firstRow.gap).toBe(0);
+    expect(firstCell.style.border).toBeUndefined();
+    expect(firstCell.style.borderSides).toMatchObject({
+      top: { width: 0.75 },
+      left: { width: 0.75 }
+    });
+  });
+
   it("resolves CSS font families through the helper hook", () => {
     const result = htmlToBoxpdf(`<p style="font-family: Missing, Inter; font-weight: 700">Hello</p>`, {
       font,

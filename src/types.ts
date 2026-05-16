@@ -71,6 +71,7 @@ export interface CssStyle {
   borderRadius?: number;
   textDecorationLine?: "none" | "underline" | "line-through";
   listStyleType?: "disc" | "decimal" | "none";
+  borderCollapse?: "separate" | "collapse";
   gap?: number;
 }
 

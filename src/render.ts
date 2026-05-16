@@ -169,6 +169,7 @@ function renderTable(node: StyledElement, options: HtmlToBoxpdfOptions, warnings
       width: cssBoxWidth(node) ?? options.width,
       columns: inferColumns(rows),
       columnGap: 0,
+      borderCollapse: node.style.borderCollapse,
       margin: node.style.margin,
       rows: rows.map((row) =>
         row.children

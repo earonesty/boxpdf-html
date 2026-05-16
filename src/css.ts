@@ -161,6 +161,9 @@ function applyDeclaration(out: Partial<CssStyle>, property: string, rawValue: st
     case "border-radius":
       out.borderRadius = parseLength(value.split(/\s+/)[0], fontSize);
       break;
+    case "border-collapse":
+      if (value === "collapse" || value === "separate") out.borderCollapse = value;
+      break;
   }
 }
 
