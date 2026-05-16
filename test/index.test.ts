@@ -83,16 +83,62 @@ c</p>`,
     });
   });
 
-  it("does not apply a simple class selector to descendants", () => {
+  it("applies descendant selectors", () => {
     const result = htmlToBoxpdf(
       `<style>.row{display:flex;flex-direction:row;gap:8px}.row .muted{color:#666}</style>
        <div class="row"><span>One</span><span class="muted">Two</span></div>`,
       { font, width: 320 }
     );
-    expect(result.nodes[0]).toMatchObject({
-      kind: "hstack",
-      children: [{ kind: "paragraph" }, { kind: "paragraph" }]
-    });
+    const row = result.nodes[0];
+    if (row?.kind !== "hstack") throw new Error("expected row");
+    const second = row.children[1];
+    if (second?.kind !== "paragraph") throw new Error("expected paragraph");
+    expect(second.runs[0]).toMatchObject({ style: { color: { r: 0.4, g: 0.4, b: 0.4 } } });
+  });
+
+  it("matches attribute, sibling, and structural pseudo selectors", () => {
+    const result = htmlToBoxpdf(
+      `<style>
+        [data-kind="lead"]{color:#111}
+        p + p{color:#222}
+        p ~ section{color:#333}
+        li:first-child{color:#444}
+        li:nth-child(2){color:#555}
+        li:last-child{color:#666}
+      </style>
+      <p data-kind="lead">Lead</p><p>Second</p><section>Section</section>
+      <ul><li>One</li><li>Two</li><li>Three</li></ul>`,
+      { font, width: 320 }
+    );
+    const lead = result.nodes[0];
+    const second = result.nodes[1];
+    const section = result.nodes[2];
+    const list = result.nodes[3];
+    if (lead?.kind !== "vstack" || second?.kind !== "vstack" || section?.kind !== "vstack" || list?.kind !== "vstack") {
+      throw new Error("expected blocks");
+    }
+    const leadParagraph = lead.children[0];
+    const secondParagraph = second.children[0];
+    const sectionParagraph = section.children[0];
+    const firstItem = list.children[0];
+    const secondItem = list.children[1];
+    const thirdItem = list.children[2];
+    if (
+      leadParagraph?.kind !== "paragraph" ||
+      secondParagraph?.kind !== "paragraph" ||
+      sectionParagraph?.kind !== "paragraph" ||
+      firstItem?.kind !== "paragraph" ||
+      secondItem?.kind !== "paragraph" ||
+      thirdItem?.kind !== "paragraph"
+    ) {
+      throw new Error("expected paragraphs");
+    }
+    expect(leadParagraph.runs[0]).toMatchObject({ style: { color: { r: 0.06666666666666667 } } });
+    expect(secondParagraph.runs[0]).toMatchObject({ style: { color: { r: 0.13333333333333333 } } });
+    expect(sectionParagraph.runs[0]).toMatchObject({ style: { color: { r: 0.2 } } });
+    expect(firstItem.runs[1]).toMatchObject({ style: { color: { r: 0.26666666666666666 } } });
+    expect(secondItem.runs[1]).toMatchObject({ style: { color: { r: 0.3333333333333333 } } });
+    expect(thirdItem.runs[1]).toMatchObject({ style: { color: { r: 0.4 } } });
   });
 
   it("renders parser-inserted table sections", () => {

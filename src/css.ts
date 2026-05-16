@@ -237,60 +237,196 @@ function matchesSelector(node: HtmlElementNode, selector: string): boolean {
   const parts = selectorParts(selector);
   if (parts.length === 0) return false;
   const last = parts[parts.length - 1]!;
-  if (last.combinator === "unsupported" || !matchesCompound(node, last.selector)) return false;
+  if (!matchesCompound(node, last.selector)) return false;
+  last.node = node;
 
   let cursor: HtmlElementNode | undefined = node.parent;
   for (let i = parts.length - 2; i >= 0; i -= 1) {
     const part = parts[i]!;
     const combinator = parts[i + 1]!.combinator;
-    if (combinator === "unsupported") return false;
     if (combinator === ">") {
       if (!cursor || !matchesCompound(cursor, part.selector)) return false;
       cursor = cursor.parent;
       continue;
     }
+    if (combinator === "+") {
+      const previous = previousElement(parts[i + 1]!.node ?? node);
+      if (!previous || !matchesCompound(previous, part.selector)) return false;
+      cursor = previous.parent;
+      parts[i]!.node = previous;
+      continue;
+    }
+    if (combinator === "~") {
+      let sibling = previousElement(parts[i + 1]!.node ?? node);
+      while (sibling && !matchesCompound(sibling, part.selector)) sibling = previousElement(sibling);
+      if (!sibling) return false;
+      cursor = sibling.parent;
+      parts[i]!.node = sibling;
+      continue;
+    }
     while (cursor && !matchesCompound(cursor, part.selector)) cursor = cursor.parent;
     if (!cursor) return false;
+    parts[i]!.node = cursor;
     cursor = cursor.parent;
   }
   return true;
 }
 
-function selectorParts(selector: string): Array<{ selector: string; combinator: " " | ">" | "unsupported" }> {
-  const tokens = selector.replace(/>/g, " > ").split(/\s+/).filter(Boolean);
-  const parts: Array<{ selector: string; combinator: " " | ">" | "unsupported" }> = [];
-  let nextCombinator: " " | ">" | "unsupported" = " ";
-  for (const token of tokens) {
-    if (token === ">") {
-      nextCombinator = ">";
+function selectorParts(selector: string): Array<{ selector: string; combinator: " " | ">" | "+" | "~"; node?: HtmlElementNode }> {
+  const parts: Array<{ selector: string; combinator: " " | ">" | "+" | "~" }> = [];
+  let buffer = "";
+  let combinator: " " | ">" | "+" | "~" = " ";
+  let depth = 0;
+  let quote = "";
+
+  const flush = (): void => {
+    const trimmed = buffer.trim();
+    if (trimmed) parts.push({ selector: trimmed, combinator });
+    buffer = "";
+    combinator = " ";
+  };
+
+  for (let i = 0; i < selector.length; i += 1) {
+    const char = selector[i]!;
+    if (quote) {
+      buffer += char;
+      if (char === quote) quote = "";
       continue;
     }
-    if (token === "+" || token === "~") {
-      nextCombinator = "unsupported";
+    if (char === '"' || char === "'") {
+      quote = char;
+      buffer += char;
       continue;
     }
-    parts.push({ selector: token, combinator: nextCombinator });
-    nextCombinator = " ";
+    if (char === "[" || char === "(") depth += 1;
+    if (char === "]" || char === ")") depth = Math.max(0, depth - 1);
+    if (depth === 0 && (char === ">" || char === "+" || char === "~")) {
+      flush();
+      combinator = char;
+      continue;
+    }
+    if (depth === 0 && /\s/.test(char)) {
+      let next = i + 1;
+      while (next < selector.length && /\s/.test(selector[next]!)) next += 1;
+      if (!buffer.trim() || selector[next] === ">" || selector[next] === "+" || selector[next] === "~") {
+        i = next - 1;
+        continue;
+      }
+      flush();
+      i = next - 1;
+      continue;
+    }
+    buffer += char;
   }
+  flush();
   return parts;
 }
 
 function matchesCompound(node: HtmlElementNode, selector: string): boolean {
+  const stripped = stripSupportedPseudos(selector, node);
+  if (stripped === undefined) return false;
+  selector = stripped;
   if (selector === "*") return true;
+  if (!matchesAttributes(node, selector)) return false;
+  selector = selector.replace(/\[[^\]]+\]/g, "");
   const id = /#([A-Za-z0-9_-]+)/.exec(selector)?.[1];
   if (id && node.attrs.id !== id) return false;
   const classes = [...selector.matchAll(/\.([A-Za-z0-9_-]+)/g)].map((m) => m[1]!);
   const nodeClasses = new Set((node.attrs.class ?? "").split(/\s+/).filter(Boolean));
   if (classes.some((klass) => !nodeClasses.has(klass))) return false;
   const tag = selector.replace(/[#.][A-Za-z0-9_-]+/g, "").trim();
-  return tag.length === 0 || tag.toLowerCase() === node.tag;
+  return tag.length === 0 || tag === "*" || tag.toLowerCase() === node.tag;
 }
 
 function specificity(selector: string): number {
   const ids = (selector.match(/#[A-Za-z0-9_-]+/g) ?? []).length;
-  const classes = (selector.match(/\.[A-Za-z0-9_-]+/g) ?? []).length;
-  const tags = selector.split(/\s+/).filter((part) => /^[A-Za-z]/.test(part)).length;
+  const classes =
+    (selector.match(/\.[A-Za-z0-9_-]+/g) ?? []).length +
+    (selector.match(/\[[^\]]+\]/g) ?? []).length +
+    (selector.match(/:[A-Za-z-]+(?:\([^)]*\))?/g) ?? []).length;
+  const tags = selectorParts(selector).filter((part) => /^[A-Za-z]/.test(part.selector.replace(/[#.:\[].*$/, ""))).length;
   return ids * 100 + classes * 10 + tags;
+}
+
+function stripSupportedPseudos(selector: string, node: HtmlElementNode): string | undefined {
+  let out = selector;
+  const pseudos = [...out.matchAll(/:([A-Za-z-]+)(?:\(([^)]*)\))?/g)];
+  for (const match of pseudos) {
+    const name = match[1]!;
+    const arg = match[2]?.trim();
+    if (name === "first-child") {
+      if (elementIndex(node) !== 1) return undefined;
+    } else if (name === "last-child") {
+      if (elementIndex(node) !== elementSiblings(node).length) return undefined;
+    } else if (name === "nth-child") {
+      if (!matchesNth(elementIndex(node), arg)) return undefined;
+    } else if (name === "first-of-type") {
+      if (typeIndex(node) !== 1) return undefined;
+    } else if (name === "last-of-type") {
+      if (typeIndex(node) !== typeSiblings(node).length) return undefined;
+    } else if (name === "nth-of-type") {
+      if (!matchesNth(typeIndex(node), arg)) return undefined;
+    } else {
+      return undefined;
+    }
+    out = out.replace(match[0], "");
+  }
+  return out;
+}
+
+function matchesAttributes(node: HtmlElementNode, selector: string): boolean {
+  for (const match of selector.matchAll(/\[([^\]=~|^$*\s]+)(?:\s*([~|^$*]?=)\s*(?:"([^"]*)"|'([^']*)'|([^\]\s]+)))?\]/g)) {
+    const name = match[1]!;
+    const op = match[2];
+    const expected = match[3] ?? match[4] ?? match[5] ?? "";
+    const actual = node.attrs[name];
+    if (actual === undefined) return false;
+    if (!op) continue;
+    if (op === "=" && actual !== expected) return false;
+    if (op === "~=" && !actual.split(/\s+/).includes(expected)) return false;
+    if (op === "|=" && actual !== expected && !actual.startsWith(`${expected}-`)) return false;
+    if (op === "^=" && !actual.startsWith(expected)) return false;
+    if (op === "$=" && !actual.endsWith(expected)) return false;
+    if (op === "*=" && !actual.includes(expected)) return false;
+  }
+  return true;
+}
+
+function previousElement(node: HtmlElementNode): HtmlElementNode | undefined {
+  const siblings = elementSiblings(node);
+  return siblings[elementIndex(node) - 2];
+}
+
+function elementSiblings(node: HtmlElementNode): HtmlElementNode[] {
+  return node.parent?.children.filter((child): child is HtmlElementNode => child.kind === "element") ?? [];
+}
+
+function typeSiblings(node: HtmlElementNode): HtmlElementNode[] {
+  return elementSiblings(node).filter((sibling) => sibling.tag === node.tag);
+}
+
+function elementIndex(node: HtmlElementNode): number {
+  return elementSiblings(node).indexOf(node) + 1;
+}
+
+function typeIndex(node: HtmlElementNode): number {
+  return typeSiblings(node).indexOf(node) + 1;
+}
+
+function matchesNth(index: number, arg: string | undefined): boolean {
+  if (!arg) return false;
+  const normalized = arg.replace(/\s+/g, "").toLowerCase();
+  if (normalized === "odd") return index % 2 === 1;
+  if (normalized === "even") return index % 2 === 0;
+  const exact = Number(normalized);
+  if (Number.isInteger(exact)) return index === exact;
+  const match = /^([+-]?\d*)n([+-]\d+)?$/.exec(normalized);
+  if (!match) return false;
+  const aRaw = match[1]!;
+  const a = aRaw === "" || aRaw === "+" ? 1 : aRaw === "-" ? -1 : Number(aRaw);
+  const b = match[2] ? Number(match[2]) : 0;
+  if (!Number.isFinite(a) || !Number.isFinite(b) || a === 0) return index === b;
+  return (index - b) / a >= 0 && Number.isInteger((index - b) / a);
 }
 
 function compareRule(a: CssRule, b: CssRule): number {

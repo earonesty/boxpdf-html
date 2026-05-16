@@ -1,0 +1,31 @@
+<style>
+  @page { size: Letter; margin: 40pt; }
+  body { margin: 0; font-family: Helvetica, Arial, sans-serif; color: #111; font-size: 13px; }
+  .panel {
+    width: 420px;
+    padding: 14px 16px;
+    border: 1px solid #94a3b8;
+    border-radius: 8px;
+    background: #f8fafc;
+  }
+  h2 { margin: 0 0 10px 0; }
+  p { margin: 0 0 8px 0; line-height: 1.25; }
+  .panel [data-kind="lead"] { color: #0f172a; font-weight: 700; }
+  p + p { color: #475569; }
+  p ~ section { color: #2563eb; }
+  ul { margin: 8px 0 0 0; padding-left: 28px; }
+  li:first-child { color: #166534; }
+  li:nth-child(2) { color: #7c2d12; }
+  li:last-child { color: #7f1d1d; }
+</style>
+<div class="panel">
+  <h2>Selectors</h2>
+  <p data-kind="lead">Attribute selectors should apply.</p>
+  <p>Adjacent sibling selectors should apply.</p>
+  <section>General sibling selectors should apply.</section>
+  <ul>
+    <li>First item</li>
+    <li>Second item</li>
+    <li>Last item</li>
+  </ul>
+</div>
