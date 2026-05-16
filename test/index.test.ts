@@ -36,6 +36,15 @@ describe("htmlToBoxpdf", () => {
     });
   });
 
+  it("preserves collapsed whitespace between inline elements", () => {
+    const result = htmlToBoxpdf(`<p>Hello <strong>bold</strong> <span>world</span></p>`, { font, boldFont: bold, width: 320 });
+    const block = result.nodes[0];
+    if (block?.kind !== "vstack") throw new Error("expected block");
+    const paragraph = block.children[0];
+    if (paragraph?.kind !== "paragraph") throw new Error("expected paragraph");
+    expect(paragraph.runs.map((item) => ("text" in item ? item.text : "")).join("")).toBe("Hello bold world");
+  });
+
   it("applies basic stylesheet and inline style declarations", () => {
     const result = htmlToBoxpdf(
       `<style>.row{display:flex;flex-direction:row;align-items:baseline;gap:8px}.muted{color:#666}</style>

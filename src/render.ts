@@ -148,7 +148,11 @@ function collectInlineRuns(nodes: StyledNode[], options: HtmlToBoxpdfOptions): P
   const runs: ParagraphItem[] = [];
   for (const node of nodes) {
     if ("text" in node) {
-      if (node.text.trim()) runs.push(run(node.text, runStyle(node, options)));
+      if (node.text.trim()) {
+        runs.push(run(node.text, runStyle(node, options)));
+      } else if (runs.length > 0) {
+        runs.push(run(" ", runStyle(node, options)));
+      }
       continue;
     }
     if (node.style.display === "inline" || node.style.display === "inline-block") {
