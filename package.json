@@ -1,0 +1,64 @@
+{
+  "name": "boxpdf-html",
+  "version": "0.1.0",
+  "description": "Readable HTML-to-PDF translator built on boxpdf.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "pnpm run typecheck && pnpm run test && pnpm run build && node scripts/prepare-publish.mjs --verify",
+    "pack:release": "pnpm run typecheck && pnpm run test && pnpm run build && node scripts/prepare-publish.mjs --pack",
+    "publish:release": "pnpm run typecheck && pnpm run test && pnpm run build && node scripts/prepare-publish.mjs --publish"
+  },
+  "keywords": [
+    "pdf",
+    "html",
+    "css",
+    "boxpdf",
+    "html-to-pdf"
+  ],
+  "license": "MIT",
+  "author": {
+    "name": "Erik Aronesty",
+    "email": "erik@q32.com"
+  },
+  "homepage": "https://github.com/earonesty/boxpdf-html#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/earonesty/boxpdf-html.git"
+  },
+  "bugs": {
+    "url": "https://github.com/earonesty/boxpdf-html/issues"
+  },
+  "dependencies": {
+    "boxpdf": "file:..",
+    "css-tree": "^3.1.0",
+    "parse5": "^8.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.19",
+    "pdf-lib": "^1.17.1",
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.6"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
