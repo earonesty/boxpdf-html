@@ -139,6 +139,19 @@ function applyDeclaration(out: Partial<CssStyle>, property: string, rawValue: st
       out.widthPercent = parsePercentage(value);
       out.width = out.widthPercent === undefined ? parseLength(value, fontSize) : undefined;
       break;
+    case "min-width":
+      out.minWidthPercent = parsePercentage(value);
+      out.minWidth = out.minWidthPercent === undefined ? parseLength(value, fontSize) : undefined;
+      break;
+    case "max-width":
+      if (value === "none") {
+        out.maxWidth = undefined;
+        out.maxWidthPercent = undefined;
+      } else {
+        out.maxWidthPercent = parsePercentage(value);
+        out.maxWidth = out.maxWidthPercent === undefined ? parseLength(value, fontSize) : undefined;
+      }
+      break;
     case "height":
       out.height = parseLength(value, fontSize);
       break;

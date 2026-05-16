@@ -211,6 +211,25 @@ c</p>`,
     expect(child.style.width).toBe(57);
   });
 
+  it("clamps explicit and auto widths with min-width and max-width", () => {
+    const result = htmlToBoxpdf(
+      `<style>
+        .max{width:100%;max-width:120px}
+        .auto{max-width:80px}
+        .min{width:40px;min-width:90px}
+      </style>
+      <div class="max">Max</div><div class="auto">Auto</div><div class="min">Min</div>`,
+      { font, width: 300 }
+    );
+    const max = result.nodes[0];
+    const auto = result.nodes[1];
+    const min = result.nodes[2];
+    if (max?.kind !== "vstack" || auto?.kind !== "vstack" || min?.kind !== "vstack") throw new Error("expected blocks");
+    expect(max.style.width).toBe(90);
+    expect(auto.style.width).toBe(60);
+    expect(min.style.width).toBe(67.5);
+  });
+
   it("resolves CSS font families through the helper hook", () => {
     const result = htmlToBoxpdf(`<p style="font-family: Missing, Inter; font-weight: 700">Hello</p>`, {
       font,

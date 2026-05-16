@@ -66,6 +66,10 @@ export interface CssStyle {
   boxSizing: "content-box" | "border-box";
   width?: number;
   widthPercent?: number;
+  minWidth?: number;
+  minWidthPercent?: number;
+  maxWidth?: number;
+  maxWidthPercent?: number;
   height?: number;
   margin?: EdgesInput;
   padding?: EdgesInput;

@@ -24,6 +24,12 @@ function styleElement(node: HtmlElementNode, rules: CssRule[], inherited: CssSty
   const withRules = { ...tagDefaults, ...ruleDeclarationsFor(node, rules) };
   const style = { ...withRules, ...parseStyleAttribute(node.attrs.style, withRules.fontSize) };
   if (style.widthPercent !== undefined && containingWidth !== undefined) style.width = containingWidth * style.widthPercent;
+  if (style.minWidthPercent !== undefined && containingWidth !== undefined) style.minWidth = containingWidth * style.minWidthPercent;
+  if (style.maxWidthPercent !== undefined && containingWidth !== undefined) style.maxWidth = containingWidth * style.maxWidthPercent;
+  if (style.width === undefined && containingWidth !== undefined && (style.minWidth !== undefined || style.maxWidth !== undefined)) {
+    style.width = containingWidth;
+  }
+  if (style.width !== undefined) style.width = clamp(style.width, style.minWidth, style.maxWidth);
   if (style.lineHeightScale !== undefined) style.lineHeight = style.fontSize * style.lineHeightScale;
   const inheritedForChildren = inherit(style);
   const childContainingWidth = contentWidthForChildren(style, containingWidth);
@@ -62,6 +68,10 @@ function defaultsForTag(tag: string, inherited: CssStyle): CssStyle {
     boxSizing: "content-box",
     width: undefined,
     widthPercent: undefined,
+    minWidth: undefined,
+    minWidthPercent: undefined,
+    maxWidth: undefined,
+    maxWidthPercent: undefined,
     height: undefined
   };
   if (tag === "strong" || tag === "b" || tag === "th") style.fontWeight = "bold";
@@ -112,6 +122,10 @@ function inherit(style: CssStyle): CssStyle {
     boxSizing: "content-box",
     width: undefined,
     widthPercent: undefined,
+    minWidth: undefined,
+    minWidthPercent: undefined,
+    maxWidth: undefined,
+    maxWidthPercent: undefined,
     height: undefined
   };
 }
@@ -129,6 +143,12 @@ function contentWidth(style: CssStyle): number {
   const padding = edges(style.padding);
   const borderWidth = style.borderWidth ?? 0;
   return Math.max(0, style.width - padding.left - padding.right - borderWidth * 2);
+}
+
+function clamp(value: number, min: number | undefined, max: number | undefined): number {
+  if (min !== undefined) value = Math.max(value, min);
+  if (max !== undefined) value = Math.min(value, max);
+  return value;
 }
 
 function edges(input: EdgesInput | undefined): { top: number; right: number; bottom: number; left: number } {
