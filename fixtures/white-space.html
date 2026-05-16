@@ -1,0 +1,42 @@
+<style>
+  @page { size: Letter; margin: 40pt; }
+  body { margin: 0; font-family: Helvetica, Arial, sans-serif; color: #111; font-size: 13px; }
+  .panel {
+    width: 420px;
+    padding: 14px 16px;
+    border: 1px solid #94a3b8;
+    border-radius: 8px;
+    background: #f8fafc;
+  }
+  h2 { margin: 0 0 10px 0; }
+  p { margin: 0 0 10px 0; line-height: 1.25; }
+  .pre {
+    white-space: pre;
+    font-family: Courier, monospace;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    padding: 8px;
+  }
+  .wrap {
+    width: 180px;
+    white-space: normal;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    padding: 8px;
+  }
+  .nowrap {
+    width: 180px;
+    white-space: nowrap;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    padding: 8px;
+  }
+</style>
+<div class="panel">
+  <h2>White space</h2>
+  <p>Line<br>breaks should force new lines.</p>
+  <p class="pre">alpha   beta
+gamma     delta</p>
+  <p class="wrap">normal text wraps at the box width</p>
+  <p class="nowrap">nowrap text stays on one long line</p>
+</div>

@@ -60,6 +60,7 @@ export interface CssStyle {
   fontStyle: FontStyle;
   lineHeight?: number;
   lineHeightScale?: number;
+  whiteSpace?: "normal" | "nowrap" | "pre" | "pre-wrap" | "pre-line";
   textAlign: "left" | "center" | "right";
   verticalAlign: "baseline" | "middle";
   width?: number;

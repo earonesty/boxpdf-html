@@ -45,6 +45,31 @@ describe("htmlToBoxpdf", () => {
     expect(paragraph.runs.map((item) => ("text" in item ? item.text : "")).join("")).toBe("Hello bold world");
   });
 
+  it("maps white-space rules to paragraph wrapping and hard breaks", () => {
+    const result = htmlToBoxpdf(
+      `<style>.pre{white-space:pre}.nowrap{white-space:nowrap;width:40px}.preline{white-space:pre-line}</style>
+       <p class="pre">alpha   beta
+gamma</p><p class="nowrap">one two three</p><p class="preline">a   b
+c</p>`,
+      { font, width: 320 }
+    );
+    const pre = result.nodes[0];
+    const nowrap = result.nodes[1];
+    const preline = result.nodes[2];
+    if (pre?.kind !== "vstack" || nowrap?.kind !== "vstack" || preline?.kind !== "vstack") throw new Error("expected blocks");
+    const preParagraph = pre.children[0];
+    const nowrapParagraph = nowrap.children[0];
+    const prelineParagraph = preline.children[0];
+    if (preParagraph?.kind !== "paragraph" || nowrapParagraph?.kind !== "paragraph" || prelineParagraph?.kind !== "paragraph") {
+      throw new Error("expected paragraphs");
+    }
+    expect(preParagraph.props.wrap).toBe(false);
+    expect(preParagraph.runs.map((item) => ("text" in item ? item.text : "")).join("")).toContain("alpha   beta\n");
+    expect(nowrapParagraph.props.wrap).toBe(false);
+    expect(prelineParagraph.props.wrap).toBe(true);
+    expect(prelineParagraph.runs.map((item) => ("text" in item ? item.text : "")).join("")).toContain("a b\nc");
+  });
+
   it("applies basic stylesheet and inline style declarations", () => {
     const result = htmlToBoxpdf(
       `<style>.row{display:flex;flex-direction:row;align-items:baseline;gap:8px}.muted{color:#666}</style>

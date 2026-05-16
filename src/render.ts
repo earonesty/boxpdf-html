@@ -60,7 +60,7 @@ function renderBlockChildren(node: StyledElement, options: HtmlToBoxpdfOptions, 
   const flushInline = (): void => {
     const runs = collectInlineRuns(inlineBuffer, options);
     if (runs.length > 0) {
-      out.push(paragraph({ width: contentWidth(node), align: node.style.textAlign }, ...runs));
+      out.push(paragraph({ width: contentWidth(node), align: node.style.textAlign, wrap: shouldWrap(node.style) }, ...runs));
     }
     inlineBuffer = [];
   };
@@ -97,7 +97,7 @@ function renderFlex(node: StyledElement, options: HtmlToBoxpdfOptions, warnings:
 function renderInlineGroup(node: StyledElement, options: HtmlToBoxpdfOptions, warnings: string[]): BoxNode[] {
   const runs = collectInlineRuns([node], options);
   if (runs.length === 0) return [];
-  return [paragraph({ width: contentWidth(node), align: node.style.textAlign }, ...runs)];
+  return [paragraph({ width: contentWidth(node), align: node.style.textAlign, wrap: shouldWrap(node.style) }, ...runs)];
 }
 
 function renderList(node: StyledElement, options: HtmlToBoxpdfOptions, warnings: string[]): BoxNode {
@@ -133,7 +133,8 @@ function renderListItem(
             align: item.style.textAlign,
             margin: item.style.margin,
             paddingLeft: marker ? markerWidth : 0,
-            textIndent: marker ? -markerWidth : 0
+            textIndent: marker ? -markerWidth : 0,
+            wrap: shouldWrap(item.style)
           },
           ...(marker ? [run(marker, runStyle({ style: item.style } as StyledText, options))] : []),
           ...runs
@@ -148,11 +149,17 @@ function collectInlineRuns(nodes: StyledNode[], options: HtmlToBoxpdfOptions): P
   const runs: ParagraphItem[] = [];
   for (const node of nodes) {
     if ("text" in node) {
-      if (node.text.trim()) {
+      if (preservesWhitespace(node.style) && node.text.length > 0) {
+        runs.push(run(node.text, runStyle(node, options)));
+      } else if (node.text.trim()) {
         runs.push(run(node.text, runStyle(node, options)));
       } else if (runs.length > 0) {
         runs.push(run(" ", runStyle(node, options)));
       }
+      continue;
+    }
+    if (node.node.tag === "br") {
+      runs.push(run("\n", runStyle({ style: node.style } as StyledText, options)));
       continue;
     }
     if (node.style.display === "inline" || node.style.display === "inline-block") {
@@ -257,6 +264,7 @@ function textOptions(node: StyledText, options: HtmlToBoxpdfOptions) {
   return {
     ...runStyle(node, options),
     width: node.style.width,
+    wrap: shouldWrap(node.style),
     align: node.style.textAlign,
     margin: node.style.margin
   };
@@ -287,6 +295,14 @@ function fontFor(node: StyledText, options: HtmlToBoxpdfOptions) {
 
 function isBold(weight: StyledText["style"]["fontWeight"]): boolean {
   return weight === "bold" || (typeof weight === "number" && weight >= 600);
+}
+
+function shouldWrap(style: StyledText["style"]): boolean {
+  return style.whiteSpace !== "nowrap" && style.whiteSpace !== "pre";
+}
+
+function preservesWhitespace(style: StyledText["style"]): boolean {
+  return style.whiteSpace === "pre" || style.whiteSpace === "pre-wrap";
 }
 
 function border(node: StyledElement) {

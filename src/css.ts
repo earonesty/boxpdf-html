@@ -106,6 +106,11 @@ function applyDeclaration(out: Partial<CssStyle>, property: string, rawValue: st
       if (/^[0-9.]+$/.test(value)) out.lineHeightScale = Number(value);
       else out.lineHeight = parseLineHeight(value, fontSize);
       break;
+    case "white-space":
+      if (value === "normal" || value === "nowrap" || value === "pre" || value === "pre-wrap" || value === "pre-line") {
+        out.whiteSpace = value;
+      }
+      break;
     case "text-align":
       if (value === "left" || value === "center" || value === "right") out.textAlign = value;
       break;

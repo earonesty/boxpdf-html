@@ -5,7 +5,7 @@ import type { EdgesInput } from "boxpdf";
 const blockTags = new Set([
   "address", "article", "aside", "blockquote", "body", "div", "dl", "fieldset", "figcaption",
   "figure", "footer", "form", "h1", "h2", "h3", "h4", "h5", "h6", "header", "hr", "li", "main",
-  "nav", "ol", "p", "section", "table", "tbody", "td", "tfoot", "th", "thead", "tr", "ul"
+  "nav", "ol", "p", "pre", "section", "table", "tbody", "td", "tfoot", "th", "thead", "tr", "ul"
 ]);
 
 export function computeStyles(root: HtmlElementNode, rules: CssRule[], base: CssStyle, containingWidth?: number): StyledElement {
@@ -14,7 +14,7 @@ export function computeStyles(root: HtmlElementNode, rules: CssRule[], base: Css
 
 function styleNode(node: HtmlNode, rules: CssRule[], inherited: CssStyle, containingWidth?: number): StyledNode | undefined {
   if (node.kind === "text") {
-    return { node, style: inherited, text: transformText(collapseWhitespace(node.value), inherited.textTransform) };
+    return { node, style: inherited, text: transformText(normalizeWhitespace(node.value, inherited.whiteSpace), inherited.textTransform) };
   }
   return styleElement(node, rules, inherited, containingWidth);
 }
@@ -43,7 +43,8 @@ export function defaultStyle(fontSize = 12): CssStyle {
     fontWeight: "normal",
     fontStyle: "normal",
     textAlign: "left",
-    verticalAlign: "baseline"
+    verticalAlign: "baseline",
+    whiteSpace: "normal"
   };
 }
 
@@ -91,6 +92,7 @@ function defaultsForTag(tag: string, inherited: CssStyle): CssStyle {
     style.listStyleType = tag === "ol" ? "decimal" : "disc";
   }
   if (tag === "li") style.display = "block";
+  if (tag === "pre") style.whiteSpace = "pre";
   if (tag === "br") style.display = "inline";
   return style;
 }
@@ -130,8 +132,11 @@ function edges(input: EdgesInput | undefined): { top: number; right: number; bot
   };
 }
 
-function collapseWhitespace(value: string): string {
-  return value.replace(/\s+/g, " ");
+function normalizeWhitespace(value: string, whiteSpace: CssStyle["whiteSpace"]): string {
+  const normalized = value.replace(/\r\n?/g, "\n");
+  if (whiteSpace === "pre" || whiteSpace === "pre-wrap") return normalized;
+  if (whiteSpace === "pre-line") return normalized.replace(/[^\S\n]+/g, " ");
+  return normalized.replace(/\s+/g, " ");
 }
 
 function transformText(value: string, transform: CssStyle["textTransform"]): string {
