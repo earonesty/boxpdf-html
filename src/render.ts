@@ -43,7 +43,7 @@ function renderBlock(node: StyledElement, options: HtmlToBoxpdfOptions, warnings
       width: cssBoxWidth(node),
       height: cssBoxHeight(node),
       margin: node.style.margin,
-      padding: node.style.padding,
+      padding: layoutPadding(node),
       gap: node.style.gap ?? 0,
       background: node.style.background,
       border: border(node),
@@ -90,7 +90,7 @@ function renderFlex(node: StyledElement, options: HtmlToBoxpdfOptions, warnings:
     width: cssBoxWidth(node),
     height: cssBoxHeight(node),
     margin: node.style.margin,
-    padding: node.style.padding,
+    padding: layoutPadding(node),
     gap: node.style.gap ?? 0,
     align: node.style.alignItems,
     justify: node.style.justifyContent,
@@ -201,7 +201,7 @@ function renderTable(node: StyledElement, options: HtmlToBoxpdfOptions, warnings
           .filter((child): child is StyledElement => !("text" in child) && (child.node.tag === "td" || child.node.tag === "th"))
           .map((cell) => ({
             content: renderCellContent(cell, options, warnings),
-            padding: cell.style.padding ?? 4,
+            padding: layoutPadding(cell, 4),
             background: cell.style.background,
             border: border(cell),
             borderSides: cell.style.borderSides,
@@ -290,6 +290,20 @@ function borderWidths(node: StyledElement): { top: number; right: number; bottom
     bottom: node.style.borderSides?.bottom?.width ?? all,
     left: node.style.borderSides?.left?.width ?? all
   };
+}
+
+function layoutPadding(node: StyledElement, fallback?: EdgesInput): EdgesInput | undefined {
+  const padding = edges(node.style.padding ?? fallback);
+  const borders = borderWidths(node);
+  const out = {
+    top: padding.top + borders.top,
+    right: padding.right + borders.right,
+    bottom: padding.bottom + borders.bottom,
+    left: padding.left + borders.left
+  };
+  if (out.top === 0 && out.right === 0 && out.bottom === 0 && out.left === 0) return undefined;
+  if (out.top === out.right && out.right === out.bottom && out.bottom === out.left) return out.top;
+  return out;
 }
 
 function textOptions(node: StyledText, options: HtmlToBoxpdfOptions) {

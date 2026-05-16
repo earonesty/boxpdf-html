@@ -251,6 +251,7 @@ c</p>`,
     const child = panel.children[0];
     if (child?.kind !== "vstack") throw new Error("expected child");
     expect(panel.style.width).toBe(75);
+    expect(panel.style.padding).toBe(9);
     expect(child.style.width).toBe(57);
   });
 
