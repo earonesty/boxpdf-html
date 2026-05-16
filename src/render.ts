@@ -27,6 +27,7 @@ function renderNode(node: StyledNode, options: HtmlToBoxpdfOptions, warnings: st
   if (node.style.display === "none") return [];
   if (node.node.tag === "br") return [text("", textOptions({ style: node.style } as StyledText, options))];
   if (node.node.tag === "hr") return [hline({ color: node.style.borderColor ?? { r: 0, g: 0, b: 0 }, thickness: node.style.borderWidth ?? 1 })];
+  if (node.node.tag === "ul" || node.node.tag === "ol") return [renderList(node, options, warnings)];
   if (node.node.tag === "table") return renderTable(node, options, warnings);
   if (node.style.display === "flex") return [renderFlex(node, options, warnings)];
   if (node.style.display === "inline" || node.style.display === "inline-block") {
@@ -97,6 +98,50 @@ function renderInlineGroup(node: StyledElement, options: HtmlToBoxpdfOptions, wa
   const runs = collectInlineRuns([node], options);
   if (runs.length === 0) return [];
   return [paragraph({ width: contentWidth(node), align: node.style.textAlign }, ...runs)];
+}
+
+function renderList(node: StyledElement, options: HtmlToBoxpdfOptions, warnings: string[]): BoxNode {
+  const items = node.children.filter((child): child is StyledElement => !("text" in child) && child.node.tag === "li");
+  const listPadding = edges(node.style.padding);
+  const markerWidth = Math.max(node.style.fontSize * 1.5, listPadding.left * 0.65);
+  const leftPadding = node.style.listStyleType === "none" ? listPadding.left : Math.max(0, listPadding.left - markerWidth);
+  return vstack(
+    {
+      margin: node.style.margin,
+      padding: { ...listPadding, left: leftPadding },
+      gap: node.style.gap ?? 0
+    },
+    ...items.flatMap((item, index) => renderListItem(item, index, node.style.listStyleType, markerWidth, options, warnings))
+  );
+}
+
+function renderListItem(
+  item: StyledElement,
+  index: number,
+  listStyleType: StyledElement["style"]["listStyleType"],
+  markerWidth: number,
+  options: HtmlToBoxpdfOptions,
+  warnings: string[]
+): BoxNode[] {
+  const runs = collectInlineRuns(item.children, options);
+  const marker = listStyleType === "none" ? "" : listStyleType === "decimal" ? `${index + 1}.  ` : "•  ";
+  const paragraphs = runs.length > 0
+    ? [
+        paragraph(
+          {
+            width: item.style.width,
+            align: item.style.textAlign,
+            margin: item.style.margin,
+            paddingLeft: marker ? markerWidth : 0,
+            textIndent: marker ? -markerWidth : 0
+          },
+          ...(marker ? [run(marker, runStyle({ style: item.style } as StyledText, options))] : []),
+          ...runs
+        )
+      ]
+    : [];
+  const blockChildren = item.children.filter((child) => !isInlineLike(child)).flatMap((child) => renderNode(child, options, warnings));
+  return [...paragraphs, ...blockChildren];
 }
 
 function collectInlineRuns(nodes: StyledNode[], options: HtmlToBoxpdfOptions): ParagraphItem[] {

@@ -70,6 +70,7 @@ export interface CssStyle {
   borderColor?: RGB;
   borderRadius?: number;
   textDecorationLine?: "none" | "underline" | "line-through";
+  listStyleType?: "disc" | "decimal" | "none";
   gap?: number;
 }
 

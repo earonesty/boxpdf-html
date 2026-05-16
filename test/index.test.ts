@@ -153,4 +153,16 @@ describe("htmlToBoxpdf", () => {
       ]
     });
   });
+
+  it("renders list items with hanging-indent paragraphs", () => {
+    const result = htmlToBoxpdf(`<ul><li>One</li><li>Two</li></ul><ol><li>First</li></ol>`, { font, width: 320 });
+    const unordered = result.nodes[0] as Extract<(typeof result.nodes)[number], { kind: "vstack" }>;
+    const ordered = result.nodes[1] as Extract<(typeof result.nodes)[number], { kind: "vstack" }>;
+    const unorderedFirst = unordered.children[0] as Extract<(typeof unordered.children)[number], { kind: "paragraph" }>;
+    const orderedFirst = ordered.children[0] as Extract<(typeof ordered.children)[number], { kind: "paragraph" }>;
+    expect(result.nodes).toHaveLength(2);
+    expect(unorderedFirst.props).toMatchObject({ paddingLeft: 19.5, textIndent: -19.5 });
+    expect(unorderedFirst.runs.map((item) => ("text" in item ? item.text : ""))).toEqual(["•  ", "One"]);
+    expect(orderedFirst.runs.map((item) => ("text" in item ? item.text : ""))).toEqual(["1.  ", "First"]);
+  });
 });

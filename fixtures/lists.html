@@ -1,0 +1,31 @@
+<style>
+  @page { size: Letter; margin: 40pt; }
+  body { margin: 0; font-family: Helvetica, Arial, sans-serif; color: #111; font-size: 13px; }
+  .panel {
+    width: 390px;
+    padding: 14px 16px;
+    border: 1px solid #94a3b8;
+    border-radius: 8px;
+    background: #f8fafc;
+  }
+  h2 { margin: 0 0 10px 0; }
+  p { margin: 0 0 8px 0; }
+  ul, ol { margin: 8px 0 0 0; padding-left: 28px; }
+  li { margin: 0 0 4px 0; }
+  .plain { list-style-type: none; padding-left: 0; }
+</style>
+<div class="panel">
+  <h2>Lists</h2>
+  <p>Common list markers should line up with wrapped content.</p>
+  <ul>
+    <li>Short unordered item</li>
+    <li>Wrapped unordered item with enough text to continue on the next line cleanly.</li>
+  </ul>
+  <ol>
+    <li>First ordered item</li>
+    <li>Second ordered item</li>
+  </ol>
+  <ul class="plain">
+    <li>Plain list item without marker</li>
+  </ul>
+</div>

@@ -116,6 +116,12 @@ function applyDeclaration(out: Partial<CssStyle>, property: string, rawValue: st
     case "vertical-align":
       if (value === "middle" || value === "baseline") out.verticalAlign = value;
       break;
+    case "list-style":
+    case "list-style-type":
+      if (value.includes("none")) out.listStyleType = "none";
+      else if (value.includes("decimal")) out.listStyleType = "decimal";
+      else if (value.includes("disc")) out.listStyleType = "disc";
+      break;
     case "width":
       out.width = parseLength(value, fontSize);
       break;

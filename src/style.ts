@@ -81,6 +81,12 @@ function defaultsForTag(tag: string, inherited: CssStyle): CssStyle {
     });
   }
   if (tag === "p") style.margin = { top: inherited.fontSize, bottom: inherited.fontSize };
+  if (tag === "ul" || tag === "ol") {
+    style.margin = { top: inherited.fontSize, bottom: inherited.fontSize };
+    style.padding = { left: inherited.fontSize * 2.5 };
+    style.listStyleType = tag === "ol" ? "decimal" : "disc";
+  }
+  if (tag === "li") style.display = "block";
   if (tag === "br") style.display = "inline";
   return style;
 }
