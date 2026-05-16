@@ -14,7 +14,7 @@ export function computeStyles(root: HtmlElementNode, rules: CssRule[], base: Css
 
 function styleNode(node: HtmlNode, rules: CssRule[], inherited: CssStyle, containingWidth?: number): StyledNode | undefined {
   if (node.kind === "text") {
-    return { node, style: inherited, text: collapseWhitespace(node.value) };
+    return { node, style: inherited, text: transformText(collapseWhitespace(node.value), inherited.textTransform) };
   }
   return styleElement(node, rules, inherited, containingWidth);
 }
@@ -132,4 +132,13 @@ function edges(input: EdgesInput | undefined): { top: number; right: number; bot
 
 function collapseWhitespace(value: string): string {
   return value.replace(/\s+/g, " ");
+}
+
+function transformText(value: string, transform: CssStyle["textTransform"]): string {
+  if (transform === "uppercase") return value.toUpperCase();
+  if (transform === "lowercase") return value.toLowerCase();
+  if (transform === "capitalize") {
+    return value.replace(/\p{L}[\p{L}\p{N}'-]*/gu, (word) => word[0]!.toUpperCase() + word.slice(1).toLowerCase());
+  }
+  return value;
 }

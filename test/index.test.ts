@@ -188,6 +188,19 @@ describe("htmlToBoxpdf", () => {
     });
   });
 
+  it("applies inherited text-transform to text nodes", () => {
+    const result = htmlToBoxpdf(
+      `<style>.upper{text-transform:uppercase}.cap{text-transform:capitalize}.lower{text-transform:lowercase}</style>
+       <p><span class="upper">paid </span><span class="cap">quarterly invoice </span><span class="lower">DUE NOW</span></p>`,
+      { font, width: 320 }
+    );
+    const block = result.nodes[0];
+    if (block?.kind !== "vstack") throw new Error("expected block");
+    const paragraph = block.children[0];
+    if (paragraph?.kind !== "paragraph") throw new Error("expected paragraph");
+    expect(paragraph.runs.map((item) => ("text" in item ? item.text : "")).join("")).toBe("PAID Quarterly Invoice due now");
+  });
+
   it("renders list items with hanging-indent paragraphs", () => {
     const result = htmlToBoxpdf(`<ul><li>One</li><li>Two</li></ul><ol><li>First</li></ol>`, { font, width: 320 });
     const unordered = result.nodes[0] as Extract<(typeof result.nodes)[number], { kind: "vstack" }>;

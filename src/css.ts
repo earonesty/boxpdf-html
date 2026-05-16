@@ -113,6 +113,11 @@ function applyDeclaration(out: Partial<CssStyle>, property: string, rawValue: st
     case "text-decoration-line":
       out.textDecorationLine = parseTextDecoration(value);
       break;
+    case "text-transform":
+      if (value === "none" || value === "uppercase" || value === "lowercase" || value === "capitalize") {
+        out.textTransform = value;
+      }
+      break;
     case "vertical-align":
       if (value === "middle" || value === "baseline") out.verticalAlign = value;
       break;

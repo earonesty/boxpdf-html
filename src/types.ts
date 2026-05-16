@@ -71,6 +71,7 @@ export interface CssStyle {
   borderColor?: RGB;
   borderRadius?: number;
   textDecorationLine?: "none" | "underline" | "line-through";
+  textTransform?: "none" | "uppercase" | "lowercase" | "capitalize";
   listStyleType?: "disc" | "decimal" | "none";
   borderCollapse?: "separate" | "collapse";
   gap?: number;
