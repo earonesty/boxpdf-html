@@ -1,0 +1,40 @@
+<style>
+  @page { size: Letter; margin: 40pt; }
+  body { margin: 0; font-family: Helvetica, Arial, sans-serif; color: #111; font-size: 13px; }
+  .row {
+    display: flex;
+    flex-direction: row;
+    gap: 16px;
+    align-items: start;
+  }
+  .card {
+    width: 210px;
+    padding: 14px 16px;
+    border: 3px solid #94a3b8;
+    background: #f8fafc;
+  }
+  .border-box {
+    box-sizing: border-box;
+    border-color: #2563eb;
+  }
+  h2 { margin: 0 0 10px 0; font-size: 16px; }
+  p { margin: 0; line-height: 1.25; }
+  .child {
+    width: 100%;
+    margin-top: 10px;
+    padding: 6px 8px;
+    background: #dbeafe;
+  }
+</style>
+<div class="row">
+  <div class="card">
+    <h2>content-box</h2>
+    <p>CSS width is the content width, so padding and border add to the outer size.</p>
+    <div class="child">child width: 100%</div>
+  </div>
+  <div class="card border-box">
+    <h2>border-box</h2>
+    <p>CSS width is the outer box, so children resolve against the inner content width.</p>
+    <div class="child">child width: 100%</div>
+  </div>
+</div>

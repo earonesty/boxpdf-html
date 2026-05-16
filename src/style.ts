@@ -44,6 +44,7 @@ export function defaultStyle(fontSize = 12): CssStyle {
     fontStyle: "normal",
     textAlign: "left",
     verticalAlign: "baseline",
+    boxSizing: "content-box",
     whiteSpace: "normal"
   };
 }
@@ -58,6 +59,7 @@ function defaultsForTag(tag: string, inherited: CssStyle): CssStyle {
     borderWidth: undefined,
     borderColor: undefined,
     borderRadius: undefined,
+    boxSizing: "content-box",
     width: undefined,
     widthPercent: undefined,
     height: undefined
@@ -107,6 +109,7 @@ function inherit(style: CssStyle): CssStyle {
     borderWidth: undefined,
     borderColor: undefined,
     borderRadius: undefined,
+    boxSizing: "content-box",
     width: undefined,
     widthPercent: undefined,
     height: undefined
@@ -114,11 +117,18 @@ function inherit(style: CssStyle): CssStyle {
 }
 
 function contentWidthForChildren(style: CssStyle, containingWidth: number | undefined): number | undefined {
-  if (style.width !== undefined) return style.width;
+  if (style.width !== undefined) return contentWidth(style);
   if (containingWidth === undefined) return undefined;
   const padding = edges(style.padding);
   const borderWidth = style.borderWidth ?? 0;
   return Math.max(0, containingWidth - padding.left - padding.right - borderWidth * 2);
+}
+
+function contentWidth(style: CssStyle): number {
+  if (style.width === undefined || style.boxSizing !== "border-box") return style.width ?? 0;
+  const padding = edges(style.padding);
+  const borderWidth = style.borderWidth ?? 0;
+  return Math.max(0, style.width - padding.left - padding.right - borderWidth * 2);
 }
 
 function edges(input: EdgesInput | undefined): { top: number; right: number; bottom: number; left: number } {

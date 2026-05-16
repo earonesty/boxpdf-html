@@ -197,6 +197,20 @@ c</p>`,
     expect(tableNode.style.width).toBe(225);
   });
 
+  it("maps border-box sizing to outer and child content widths", () => {
+    const result = htmlToBoxpdf(
+      `<style>.panel{box-sizing:border-box;width:100px;padding:10px;border:2px solid #000}.child{width:100%}</style>
+       <div class="panel"><div class="child">Sized</div></div>`,
+      { font, width: 320 }
+    );
+    const panel = result.nodes[0];
+    if (panel?.kind !== "vstack") throw new Error("expected panel");
+    const child = panel.children[0];
+    if (child?.kind !== "vstack") throw new Error("expected child");
+    expect(panel.style.width).toBe(75);
+    expect(child.style.width).toBe(57);
+  });
+
   it("resolves CSS font families through the helper hook", () => {
     const result = htmlToBoxpdf(`<p style="font-family: Missing, Inter; font-weight: 700">Hello</p>`, {
       font,

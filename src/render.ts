@@ -233,6 +233,7 @@ function inferColumns(rows: StyledElement[]): Array<{ width: `${number}fr` }> {
 
 function cssBoxWidth(node: StyledElement): number | undefined {
   if (node.style.width === undefined) return undefined;
+  if (node.style.boxSizing === "border-box") return node.style.width;
   const padding = edges(node.style.padding);
   const borderWidth = node.style.borderWidth ?? 0;
   return node.style.width + padding.left + padding.right + borderWidth * 2;
@@ -240,12 +241,18 @@ function cssBoxWidth(node: StyledElement): number | undefined {
 
 function cssBoxHeight(node: StyledElement): number | undefined {
   if (node.style.height === undefined) return undefined;
+  if (node.style.boxSizing === "border-box") return node.style.height;
   const padding = edges(node.style.padding);
   const borderWidth = node.style.borderWidth ?? 0;
   return node.style.height + padding.top + padding.bottom + borderWidth * 2;
 }
 
 function contentWidth(node: StyledElement): number | undefined {
+  if (node.style.width !== undefined && node.style.boxSizing === "border-box") {
+    const padding = edges(node.style.padding);
+    const borderWidth = node.style.borderWidth ?? 0;
+    return Math.max(0, node.style.width - padding.left - padding.right - borderWidth * 2);
+  }
   return node.style.width;
 }
 

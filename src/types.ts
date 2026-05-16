@@ -63,6 +63,7 @@ export interface CssStyle {
   whiteSpace?: "normal" | "nowrap" | "pre" | "pre-wrap" | "pre-line";
   textAlign: "left" | "center" | "right";
   verticalAlign: "baseline" | "middle";
+  boxSizing: "content-box" | "border-box";
   width?: number;
   widthPercent?: number;
   height?: number;
