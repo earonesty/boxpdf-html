@@ -71,6 +71,7 @@ function defaultsForTag(tag: string, inherited: CssStyle): CssStyle {
     background: undefined,
     borderWidth: undefined,
     borderColor: undefined,
+    borderSides: undefined,
     borderRadius: undefined,
     boxSizing: "content-box",
     width: undefined,
@@ -125,6 +126,7 @@ function inherit(style: CssStyle): CssStyle {
     background: undefined,
     borderWidth: undefined,
     borderColor: undefined,
+    borderSides: undefined,
     borderRadius: undefined,
     boxSizing: "content-box",
     width: undefined,
@@ -141,15 +143,15 @@ function contentWidthForChildren(style: CssStyle, containingWidth: number | unde
   if (style.width !== undefined) return contentWidth(style);
   if (containingWidth === undefined) return undefined;
   const padding = edges(style.padding);
-  const borderWidth = style.borderWidth ?? 0;
-  return Math.max(0, containingWidth - padding.left - padding.right - borderWidth * 2);
+  const borders = borderWidths(style);
+  return Math.max(0, containingWidth - padding.left - padding.right - borders.left - borders.right);
 }
 
 function contentWidth(style: CssStyle): number {
   if (style.width === undefined || style.boxSizing !== "border-box") return style.width ?? 0;
   const padding = edges(style.padding);
-  const borderWidth = style.borderWidth ?? 0;
-  return Math.max(0, style.width - padding.left - padding.right - borderWidth * 2);
+  const borders = borderWidths(style);
+  return Math.max(0, style.width - padding.left - padding.right - borders.left - borders.right);
 }
 
 function clamp(value: number, min: number | undefined, max: number | undefined): number {
@@ -166,6 +168,16 @@ function edges(input: EdgesInput | undefined): { top: number; right: number; bot
     right: input.right ?? 0,
     bottom: input.bottom ?? 0,
     left: input.left ?? 0
+  };
+}
+
+function borderWidths(style: CssStyle): { top: number; right: number; bottom: number; left: number } {
+  const all = style.borderWidth ?? 0;
+  return {
+    top: style.borderSides?.top?.width ?? all,
+    right: style.borderSides?.right?.width ?? all,
+    bottom: style.borderSides?.bottom?.width ?? all,
+    left: style.borderSides?.left?.width ?? all
   };
 }
 

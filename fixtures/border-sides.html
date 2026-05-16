@@ -1,0 +1,30 @@
+<style>
+  @page { size: Letter; margin: 40pt; }
+  body { margin: 0; font-family: Helvetica, Arial, sans-serif; color: #111; font-size: 13px; }
+  .panel {
+    width: 420px;
+    padding: 14px 16px;
+    border: 1px solid #94a3b8;
+    background: #f8fafc;
+  }
+  h2 { margin: 0 0 10px 0; }
+  p { margin: 0 0 12px 0; line-height: 1.25; }
+  .rule {
+    width: 310px;
+    padding: 10px 12px;
+    background: #ffffff;
+    border-left: 5px solid #2563eb;
+    border-bottom: 2px solid #94a3b8;
+  }
+  .accent {
+    margin-top: 10px;
+    border-top: 3px solid #166534;
+    border-right: 4px solid #7c2d12;
+  }
+</style>
+<div class="panel">
+  <h2>Border sides</h2>
+  <p>Per-side CSS borders should map to independent boxpdf strokes.</p>
+  <div class="rule">Left and bottom borders</div>
+  <div class="rule accent">Top, right, left, and bottom borders</div>
+</div>

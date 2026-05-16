@@ -1,4 +1,4 @@
-import type { EdgesInput, Node as BoxNode, RGB } from "boxpdf";
+import type { BorderSides, EdgesInput, Node as BoxNode, RGB } from "boxpdf";
 import type { PDFFont } from "pdf-lib";
 
 export interface HtmlToBoxpdfOptions {
@@ -75,6 +75,7 @@ export interface CssStyle {
   padding?: EdgesInput;
   borderWidth?: number;
   borderColor?: RGB;
+  borderSides?: BorderSides;
   borderRadius?: number;
   textDecorationLine?: "none" | "underline" | "line-through";
   textTransform?: "none" | "uppercase" | "lowercase" | "capitalize";

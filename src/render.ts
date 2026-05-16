@@ -47,6 +47,7 @@ function renderBlock(node: StyledElement, options: HtmlToBoxpdfOptions, warnings
       gap: node.style.gap ?? 0,
       background: node.style.background,
       border: border(node),
+      borderSides: node.style.borderSides,
       borderRadius: node.style.borderRadius
     },
     ...children
@@ -89,6 +90,7 @@ function renderFlex(node: StyledElement, options: HtmlToBoxpdfOptions, warnings:
     justify: node.style.justifyContent,
     background: node.style.background,
     border: border(node),
+    borderSides: node.style.borderSides,
     borderRadius: node.style.borderRadius
   };
   return node.style.flexDirection === "row" ? hstack(style, ...children) : vstack(style, ...children);
@@ -190,6 +192,7 @@ function renderTable(node: StyledElement, options: HtmlToBoxpdfOptions, warnings
             padding: cell.style.padding ?? 4,
             background: cell.style.background,
             border: border(cell),
+            borderSides: cell.style.borderSides,
             borderRadius: cell.style.borderRadius,
             align: cell.style.textAlign,
             valign: cell.style.verticalAlign === "middle" ? "middle" : "top"
@@ -235,23 +238,23 @@ function cssBoxWidth(node: StyledElement): number | undefined {
   if (node.style.width === undefined) return undefined;
   if (node.style.boxSizing === "border-box") return node.style.width;
   const padding = edges(node.style.padding);
-  const borderWidth = node.style.borderWidth ?? 0;
-  return node.style.width + padding.left + padding.right + borderWidth * 2;
+  const borders = borderWidths(node);
+  return node.style.width + padding.left + padding.right + borders.left + borders.right;
 }
 
 function cssBoxHeight(node: StyledElement): number | undefined {
   if (node.style.height === undefined) return undefined;
   if (node.style.boxSizing === "border-box") return node.style.height;
   const padding = edges(node.style.padding);
-  const borderWidth = node.style.borderWidth ?? 0;
-  return node.style.height + padding.top + padding.bottom + borderWidth * 2;
+  const borders = borderWidths(node);
+  return node.style.height + padding.top + padding.bottom + borders.top + borders.bottom;
 }
 
 function contentWidth(node: StyledElement): number | undefined {
   if (node.style.width !== undefined && node.style.boxSizing === "border-box") {
     const padding = edges(node.style.padding);
-    const borderWidth = node.style.borderWidth ?? 0;
-    return Math.max(0, node.style.width - padding.left - padding.right - borderWidth * 2);
+    const borders = borderWidths(node);
+    return Math.max(0, node.style.width - padding.left - padding.right - borders.left - borders.right);
   }
   return node.style.width;
 }
@@ -264,6 +267,16 @@ function edges(input: EdgesInput | undefined): { top: number; right: number; bot
     right: input.right ?? 0,
     bottom: input.bottom ?? 0,
     left: input.left ?? 0
+  };
+}
+
+function borderWidths(node: StyledElement): { top: number; right: number; bottom: number; left: number } {
+  const all = node.style.borderWidth ?? 0;
+  return {
+    top: node.style.borderSides?.top?.width ?? all,
+    right: node.style.borderSides?.right?.width ?? all,
+    bottom: node.style.borderSides?.bottom?.width ?? all,
+    left: node.style.borderSides?.left?.width ?? all
   };
 }
 

@@ -197,6 +197,21 @@ c</p>`,
     });
   });
 
+  it("maps per-side CSS borders to boxpdf border sides", () => {
+    const result = htmlToBoxpdf(
+      `<style>.card{width:120px;padding:4px;border-left:4px solid #111;border-bottom:2px solid #222}</style>
+       <div class="card">Sides</div>`,
+      { font, width: 320 }
+    );
+    const card = result.nodes[0];
+    if (card?.kind !== "vstack") throw new Error("expected card");
+    expect(card.style.width).toBe(99);
+    expect(card.style.borderSides).toMatchObject({
+      left: { width: 3, color: { r: 0.06666666666666667 } },
+      bottom: { width: 1.5, color: { r: 0.13333333333333333 } }
+    });
+  });
+
   it("resolves percentage widths against parent content width", () => {
     const result = htmlToBoxpdf(
       `<style>.panel{width:300px;padding:10px}table{width:100%}</style>

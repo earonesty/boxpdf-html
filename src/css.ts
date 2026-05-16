@@ -2,7 +2,7 @@ import { generate, parse as parseCss, walk } from "css-tree";
 import { parseColor } from "./color.js";
 import { parseLength, parseLineHeight, parsePercentage } from "./units.js";
 import type { CssRule, CssStyle, Display, HtmlElementNode } from "./types.js";
-import type { EdgesInput } from "boxpdf";
+import type { Border, EdgesInput } from "boxpdf";
 
 type CssNode = { type: string; [key: string]: unknown };
 export type DeclarationSet = { declarations: Partial<CssStyle>; importantDeclarations: Partial<CssStyle> };
@@ -188,11 +188,29 @@ function applyDeclaration(out: Partial<CssStyle>, property: string, rawValue: st
     case "border":
       parseBorder(out, value, fontSize);
       break;
+    case "border-top":
+    case "border-right":
+    case "border-bottom":
+    case "border-left":
+      setBorderSide(out, property.slice("border-".length), parseBorderValue(value, fontSize));
+      break;
     case "border-width":
       out.borderWidth = parseLength(value, fontSize);
       break;
+    case "border-top-width":
+    case "border-right-width":
+    case "border-bottom-width":
+    case "border-left-width":
+      setBorderSide(out, borderSideFromProperty(property, "-width"), { width: parseLength(value, fontSize) });
+      break;
     case "border-color":
       out.borderColor = parseColor(value);
+      break;
+    case "border-top-color":
+    case "border-right-color":
+    case "border-bottom-color":
+    case "border-left-color":
+      setBorderSide(out, borderSideFromProperty(property, "-color"), { color: parseColor(value) });
       break;
     case "border-radius":
       out.borderRadius = parseLength(value.split(/\s+/)[0], fontSize);
@@ -245,10 +263,31 @@ function setEdge(edges: EdgesInput | undefined, side: string, value: number | un
 }
 
 function parseBorder(out: Partial<CssStyle>, value: string, fontSize: number): void {
+  const parsed = parseBorderValue(value, fontSize);
+  out.borderWidth ??= parsed.width;
+  out.borderColor ??= parsed.color;
+}
+
+function parseBorderValue(value: string, fontSize: number): Partial<Border> {
+  const out: Partial<Border> = {};
+  if (/\bnone\b/.test(value)) out.width = 0;
   for (const token of value.split(/\s+/)) {
-    out.borderWidth ??= parseLength(token, fontSize);
-    out.borderColor ??= parseColor(token);
+    out.width ??= parseLength(token, fontSize);
+    out.color ??= parseColor(token);
   }
+  return out;
+}
+
+function setBorderSide(out: Partial<CssStyle>, side: string, value: Partial<Border>): void {
+  if (side !== "top" && side !== "right" && side !== "bottom" && side !== "left") return;
+  const current = out.borderSides?.[side];
+  const width = value.width ?? current?.width ?? out.borderWidth ?? 0.75;
+  const color = value.color ?? current?.color ?? out.borderColor ?? { r: 0, g: 0, b: 0 };
+  out.borderSides = { ...out.borderSides, [side]: { width, color } };
+}
+
+function borderSideFromProperty(property: string, suffix: string): string {
+  return property.slice("border-".length, -suffix.length);
 }
 
 function selectorList(prelude: CssNode): string[] {
