@@ -51,6 +51,9 @@ The script fails if a packed/published manifest would contain a local `file:` de
 pnpm run typecheck
 pnpm run test
 pnpm run build
+pnpm run compare:prince
 pnpm run pack:release
 BOXPDF_DEP_VERSION=^1.6.1 pnpm run publish:release
 ```
+
+`compare:prince` renders `fixtures/alpha-mvp.html` through both `boxpdf-html` and Prince, then writes PDFs and PNGs to `artifacts/prince-reference`. It uses `PRINCE_BIN` when set, otherwise it looks for a local Prince install at `.tools/prince/lib/prince/bin/prince`.

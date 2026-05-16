@@ -1,0 +1,21 @@
+<style>
+  @page { size: Letter; margin: 40pt; }
+  body { margin: 0; font-family: Helvetica, Arial, sans-serif; font-size: 13px; color: #111; }
+  .card { padding: 12px; border: 1px solid #94a3b8; background: #f8fafc; width: 360px; }
+  .row { display: flex; flex-direction: row; align-items: baseline; gap: 10px; }
+  .big { font-size: 22px; font-weight: bold; }
+  .muted { color: #64748b; }
+  table { width: 360px; margin-top: 12px; border-collapse: collapse; }
+  th { background: #dbeafe; padding: 6px; text-align: left; }
+  td { padding: 6px; border: 1px solid #cbd5e1; }
+</style>
+<div class="card">
+  <h2>Alpha MVP sample</h2>
+  <p>A paragraph with <strong>bold</strong>, <em>italic</em>, and inline wrapping.</p>
+  <div class="row"><span class="big">42</span><span class="muted">baseline aligned flex row</span></div>
+</div>
+<table>
+  <tr><th>Name</th><th>Status</th></tr>
+  <tr><td>Parser table sections</td><td>Working</td></tr>
+  <tr><td>Styled cells</td><td>Readable</td></tr>
+</table>

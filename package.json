@@ -22,6 +22,7 @@
     "build": "tsup",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
+    "compare:prince": "pnpm run build && node scripts/render-prince-reference.mjs",
     "prepublishOnly": "pnpm run typecheck && pnpm run test && pnpm run build && node scripts/prepare-publish.mjs --verify",
     "pack:release": "pnpm run typecheck && pnpm run test && pnpm run build && node scripts/prepare-publish.mjs --pack",
     "publish:release": "pnpm run typecheck && pnpm run test && pnpm run build && node scripts/prepare-publish.mjs --publish"
