@@ -138,6 +138,20 @@ function applyDeclaration(out: Partial<CssStyle>, property: string, rawValue: st
     case "box-sizing":
       if (value === "content-box" || value === "border-box") out.boxSizing = value;
       break;
+    case "position":
+      if (value === "relative" || value === "absolute") out.position = value;
+      break;
+    case "top":
+    case "right":
+    case "bottom":
+    case "left":
+      out[property as "top" | "right" | "bottom" | "left"] = parseLength(value, fontSize);
+      break;
+    case "z-index": {
+      const zIndex = Number.parseInt(value, 10);
+      if (Number.isFinite(zIndex)) out.zIndex = zIndex;
+      break;
+    }
     case "list-style":
     case "list-style-type":
       if (value.includes("none")) out.listStyleType = "none";

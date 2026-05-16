@@ -1,4 +1,4 @@
-import type { BorderSides, EdgesInput, Node as BoxNode, RGB } from "boxpdf";
+import type { BorderSides, EdgesInput, Node as BoxNode, Position, RGB } from "boxpdf";
 import type { PDFFont } from "pdf-lib";
 
 export interface HtmlToBoxpdfOptions {
@@ -82,6 +82,12 @@ export interface CssStyle {
   listStyleType?: "disc" | "decimal" | "none";
   borderCollapse?: "separate" | "collapse";
   gap?: number;
+  position?: Position;
+  top?: number;
+  right?: number;
+  bottom?: number;
+  left?: number;
+  zIndex?: number;
 }
 
 export interface StyledElement {

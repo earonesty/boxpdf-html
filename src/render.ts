@@ -48,7 +48,13 @@ function renderBlock(node: StyledElement, options: HtmlToBoxpdfOptions, warnings
       background: node.style.background,
       border: border(node),
       borderSides: node.style.borderSides,
-      borderRadius: node.style.borderRadius
+      borderRadius: node.style.borderRadius,
+      position: node.style.position,
+      top: node.style.top,
+      right: node.style.right,
+      bottom: node.style.bottom,
+      left: node.style.left,
+      zIndex: node.style.zIndex
     },
     ...children
   );
@@ -91,7 +97,13 @@ function renderFlex(node: StyledElement, options: HtmlToBoxpdfOptions, warnings:
     background: node.style.background,
     border: border(node),
     borderSides: node.style.borderSides,
-    borderRadius: node.style.borderRadius
+    borderRadius: node.style.borderRadius,
+    position: node.style.position,
+    top: node.style.top,
+    right: node.style.right,
+    bottom: node.style.bottom,
+    left: node.style.left,
+    zIndex: node.style.zIndex
   };
   return node.style.flexDirection === "row" ? hstack(style, ...children) : vstack(style, ...children);
 }

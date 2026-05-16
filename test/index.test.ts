@@ -212,6 +212,20 @@ c</p>`,
     });
   });
 
+  it("maps CSS positioning and z-index to box primitives", () => {
+    const result = htmlToBoxpdf(
+      `<style>.panel{position:relative}.badge{position:absolute;top:8px;right:10px;z-index:2}</style>
+       <div class="panel"><div class="badge">New</div><p>Content</p></div>`,
+      { font, width: 320 }
+    );
+    const panel = result.nodes[0];
+    if (panel?.kind !== "vstack") throw new Error("expected panel");
+    const badge = panel.children[0];
+    if (badge?.kind !== "vstack") throw new Error("expected badge");
+    expect(panel.style.position).toBe("relative");
+    expect(badge.style).toMatchObject({ position: "absolute", top: 6, right: 7.5, zIndex: 2 });
+  });
+
   it("resolves percentage widths against parent content width", () => {
     const result = htmlToBoxpdf(
       `<style>.panel{width:300px;padding:10px}table{width:100%}</style>

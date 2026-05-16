@@ -1,0 +1,37 @@
+<style>
+  @page { size: Letter; margin: 40pt; }
+  body { margin: 0; font-family: Helvetica, Arial, sans-serif; color: #111; font-size: 13px; }
+  .panel {
+    position: relative;
+    width: 420px;
+    height: 140px;
+    padding: 14px 16px;
+    border: 1px solid #94a3b8;
+    background: #f8fafc;
+  }
+  h2 { margin: 0 0 10px 0; }
+  p { margin: 0 0 8px 0; line-height: 1.25; width: 270px; }
+  .badge {
+    position: absolute;
+    top: 14px;
+    right: 16px;
+    z-index: 2;
+    padding: 5px 8px;
+    color: #ffffff;
+    background: #2563eb;
+  }
+  .note {
+    position: absolute;
+    right: 16px;
+    bottom: 14px;
+    padding: 6px 8px;
+    background: #dcfce7;
+    border: 1px solid #86efac;
+  }
+</style>
+<div class="panel">
+  <div class="badge">ABSOLUTE</div>
+  <h2>Positioning</h2>
+  <p>Absolute children should anchor to the nearest positioned ancestor without taking normal stack space.</p>
+  <div class="note">bottom right</div>
+</div>

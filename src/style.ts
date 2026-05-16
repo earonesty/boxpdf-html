@@ -80,7 +80,13 @@ function defaultsForTag(tag: string, inherited: CssStyle): CssStyle {
     minWidthPercent: undefined,
     maxWidth: undefined,
     maxWidthPercent: undefined,
-    height: undefined
+    height: undefined,
+    position: undefined,
+    top: undefined,
+    right: undefined,
+    bottom: undefined,
+    left: undefined,
+    zIndex: undefined
   };
   if (tag === "strong" || tag === "b" || tag === "th") style.fontWeight = "bold";
   if (tag === "em" || tag === "i") style.fontStyle = "italic";
@@ -135,7 +141,13 @@ function inherit(style: CssStyle): CssStyle {
     minWidthPercent: undefined,
     maxWidth: undefined,
     maxWidthPercent: undefined,
-    height: undefined
+    height: undefined,
+    position: undefined,
+    top: undefined,
+    right: undefined,
+    bottom: undefined,
+    left: undefined,
+    zIndex: undefined
   };
 }
 
