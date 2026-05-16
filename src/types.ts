@@ -5,12 +5,24 @@ export interface HtmlToBoxpdfOptions {
   font: PDFFont;
   boldFont?: PDFFont;
   italicFont?: PDFFont;
+  resolveFont?: HtmlFontResolver;
   baseUrl?: string;
   width?: number;
   defaultFontSize?: number;
   defaultLineHeight?: number;
   defaultColor?: RGB;
 }
+
+export type FontWeight = "normal" | "bold" | number;
+export type FontStyle = "normal" | "italic";
+
+export interface HtmlFontRequest {
+  families: string[];
+  weight: FontWeight;
+  style: FontStyle;
+}
+
+export type HtmlFontResolver = (request: HtmlFontRequest) => PDFFont | undefined;
 
 export interface HtmlTextNode {
   kind: "text";
@@ -42,9 +54,10 @@ export interface CssStyle {
   justifyContent: "start" | "center" | "end" | "between" | "around" | "evenly";
   color?: RGB;
   background?: RGB;
+  fontFamily?: string[];
   fontSize: number;
-  fontWeight: "normal" | "bold";
-  fontStyle: "normal" | "italic";
+  fontWeight: FontWeight;
+  fontStyle: FontStyle;
   lineHeight?: number;
   textAlign: "left" | "center" | "right";
   verticalAlign: "baseline" | "middle";

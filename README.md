@@ -7,17 +7,31 @@ This package is intended to translate authored/static HTML into boxpdf primitive
 ## Alpha API
 
 ```ts
-import { htmlToBoxpdf } from "boxpdf-html";
+import { fontFamily, htmlToBoxpdf } from "boxpdf-html";
 
 const { nodes, warnings } = htmlToBoxpdf(html, {
   font,
   boldFont,
   italicFont,
+  resolveFont: fontFamily({
+    Inter: {
+      normal: interRegular,
+      bold: interBold,
+      italic: interItalic
+    },
+    Helvetica: {
+      normal: font,
+      bold: boldFont,
+      italic: italicFont
+    }
+  }),
   width: 468
 });
 ```
 
 `htmlToBoxpdf` returns boxpdf nodes that can be passed to the normal `boxpdf` document/page render flow. The alpha parser also exports `parseHtml` for tests and translator debugging.
+
+Fonts must be supplied by the caller. `font`, `boldFont`, and `italicFont` are the fallback faces. `resolveFont` is an optional hook for CSS `font-family`, `font-weight`, and `font-style`; `fontFamily()` is the common-case helper that builds this hook from already-embedded fonts.
 
 ## Supported MVP Surface
 
@@ -25,7 +39,7 @@ const { nodes, warnings } = htmlToBoxpdf(html, {
 - Stylesheet and inline style parsing through `css-tree`.
 - Simple selectors: tag, class, id, and descendant selectors.
 - Common document boxes: block, inline, inline-block, flex row/column, and table.
-- Common text and box styles: color, background color, font size/weight/style, line height, text align, vertical align, width, height, margin, padding, gap, and simple borders.
+- Common text and box styles: color, background color, font family/size/weight/style, line height, text align, vertical align, width, height, margin, padding, gap, and simple borders.
 
 The goal for `0.1` is a small, predictable translator pipeline that is easy to extend. It does not try to emulate browser layout exhaustively.
 

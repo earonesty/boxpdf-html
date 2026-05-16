@@ -1,4 +1,13 @@
-export type { HtmlToBoxpdfOptions, ParsedHtml, RenderResult } from "./types.js";
+export type {
+  FontStyle,
+  FontWeight,
+  HtmlFontRequest,
+  HtmlFontResolver,
+  HtmlToBoxpdfOptions,
+  ParsedHtml,
+  RenderResult
+} from "./types.js";
+export type { FontFamilyFace, FontFamilyMap } from "./font.js";
 
 import { parseStylesheets } from "./css.js";
 import { parseHtml } from "./dom.js";
@@ -18,3 +27,4 @@ export function htmlToBoxpdf(html: string, options: HtmlToBoxpdfOptions): Render
 }
 
 export { parseHtml };
+export { fontFamily } from "./font.js";

@@ -3,7 +3,7 @@ import { createRequire } from "node:module";
 import { dirname, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { htmlToBoxpdf } from "../dist/index.js";
+import { fontFamily, htmlToBoxpdf } from "../dist/index.js";
 import { renderFlow } from "../../dist/index.js";
 
 const require = createRequire(import.meta.url);
@@ -35,7 +35,17 @@ async function renderBoxpdf(source, output) {
   const font = await doc.embedFont(StandardFonts.Helvetica);
   const boldFont = await doc.embedFont(StandardFonts.HelveticaBold);
   const italicFont = await doc.embedFont(StandardFonts.HelveticaOblique);
-  const result = htmlToBoxpdf(source, { font, boldFont, italicFont, width: 532 });
+  const result = htmlToBoxpdf(source, {
+    font,
+    boldFont,
+    italicFont,
+    resolveFont: fontFamily({
+      Helvetica: { normal: font, bold: boldFont, italic: italicFont },
+      Arial: { normal: font, bold: boldFont, italic: italicFont },
+      "sans-serif": { normal: font, bold: boldFont, italic: italicFont }
+    }),
+    width: 532
+  });
 
   if (result.warnings.length > 0) {
     console.warn(result.warnings.join("\n"));

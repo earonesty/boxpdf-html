@@ -1,6 +1,6 @@
 import { describe, expect, it, beforeAll } from "vitest";
 import { PDFDocument, StandardFonts, type PDFFont } from "pdf-lib";
-import { htmlToBoxpdf, parseHtml } from "../src/index.js";
+import { fontFamily, htmlToBoxpdf, parseHtml } from "../src/index.js";
 
 let font: PDFFont;
 let bold: PDFFont;
@@ -80,6 +80,24 @@ describe("htmlToBoxpdf", () => {
     expect(result.nodes[0]).toMatchObject({
       fragmentation: { kind: "table" },
       style: { margin: { top: 9 } }
+    });
+  });
+
+  it("resolves CSS font families through the helper hook", () => {
+    const result = htmlToBoxpdf(`<p style="font-family: Missing, Inter; font-weight: 700">Hello</p>`, {
+      font,
+      resolveFont: fontFamily({
+        Inter: { normal: font, bold }
+      })
+    });
+    expect(result.nodes[0]).toMatchObject({
+      kind: "vstack",
+      children: [
+        {
+          kind: "paragraph",
+          runs: [{ style: { font: bold } }]
+        }
+      ]
     });
   });
 });

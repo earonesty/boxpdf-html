@@ -189,9 +189,19 @@ function runStyle(node: StyledText, options: HtmlToBoxpdfOptions): TextRunStyle 
 }
 
 function fontFor(node: StyledText, options: HtmlToBoxpdfOptions) {
-  if (node.style.fontWeight === "bold") return options.boldFont ?? options.font;
+  const resolved = options.resolveFont?.({
+    families: node.style.fontFamily ?? [],
+    weight: node.style.fontWeight,
+    style: node.style.fontStyle
+  });
+  if (resolved) return resolved;
+  if (isBold(node.style.fontWeight)) return options.boldFont ?? options.font;
   if (node.style.fontStyle === "italic") return options.italicFont ?? options.font;
   return options.font;
+}
+
+function isBold(weight: StyledText["style"]["fontWeight"]): boolean {
+  return weight === "bold" || (typeof weight === "number" && weight >= 600);
 }
 
 function border(node: StyledElement) {

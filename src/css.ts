@@ -93,8 +93,11 @@ function applyDeclaration(out: Partial<CssStyle>, property: string, rawValue: st
     case "font-size":
       out.fontSize = parseLength(value, fontSize) ?? out.fontSize;
       break;
+    case "font-family":
+      out.fontFamily = parseFontFamily(rawValue);
+      break;
     case "font-weight":
-      out.fontWeight = value === "bold" || Number(value) >= 600 ? "bold" : "normal";
+      out.fontWeight = parseFontWeight(value);
       break;
     case "font-style":
       out.fontStyle = value === "italic" ? "italic" : "normal";
@@ -145,6 +148,21 @@ function applyDeclaration(out: Partial<CssStyle>, property: string, rawValue: st
       out.borderColor = parseColor(value);
       break;
   }
+}
+
+function parseFontFamily(value: string): string[] {
+  return value
+    .split(",")
+    .map((family) => family.trim().replace(/^['"]|['"]$/g, ""))
+    .filter(Boolean);
+}
+
+function parseFontWeight(value: string): CssStyle["fontWeight"] {
+  if (value === "bold" || value === "bolder") return "bold";
+  if (value === "normal" || value === "lighter") return "normal";
+  const numeric = Number(value);
+  if (Number.isFinite(numeric)) return numeric;
+  return "normal";
 }
 
 function parseEdges(value: string, fontSize: number): EdgesInput | undefined {
