@@ -22,14 +22,14 @@ function styleNode(node: HtmlNode, rules: CssRule[], inherited: CssStyle, contai
 function styleElement(node: HtmlElementNode, rules: CssRule[], inherited: CssStyle, containingWidth?: number): StyledElement {
   const tagDefaults = defaultsForTag(node.tag, inherited);
   const ruleDeclarations = ruleDeclarationsFor(node, rules);
-  const withRules = { ...tagDefaults, ...ruleDeclarations.declarations };
+  const withRules = mergeStyles(tagDefaults, ruleDeclarations.declarations);
   const inlineDeclarations = parseStyleAttribute(node.attrs.style, withRules.fontSize);
-  const style = {
-    ...withRules,
-    ...inlineDeclarations.declarations,
-    ...ruleDeclarations.importantDeclarations,
-    ...inlineDeclarations.importantDeclarations
-  };
+  const style = mergeStyles(
+    withRules,
+    inlineDeclarations.declarations,
+    ruleDeclarations.importantDeclarations,
+    inlineDeclarations.importantDeclarations
+  );
   if (style.widthPercent !== undefined && containingWidth !== undefined) style.width = containingWidth * style.widthPercent;
   if (style.minWidthPercent !== undefined && containingWidth !== undefined) style.minWidth = containingWidth * style.minWidthPercent;
   if (style.maxWidthPercent !== undefined && containingWidth !== undefined) style.maxWidth = containingWidth * style.maxWidthPercent;
@@ -149,6 +149,18 @@ function inherit(style: CssStyle): CssStyle {
     left: undefined,
     zIndex: undefined
   };
+}
+
+function mergeStyles(...styles: Array<Partial<CssStyle>>): CssStyle {
+  const out: Partial<CssStyle> = {};
+  for (const style of styles) {
+    const borderSides = out.borderSides;
+    Object.assign(out, style);
+    if (style.borderSides) {
+      out.borderSides = { ...borderSides, ...style.borderSides };
+    }
+  }
+  return out as CssStyle;
 }
 
 function contentWidthForChildren(style: CssStyle, containingWidth: number | undefined): number | undefined {

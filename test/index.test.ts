@@ -199,14 +199,16 @@ c</p>`,
 
   it("maps per-side CSS borders to boxpdf border sides", () => {
     const result = htmlToBoxpdf(
-      `<style>.card{width:120px;padding:4px;border-left:4px solid #111;border-bottom:2px solid #222}</style>
-       <div class="card">Sides</div>`,
+      `<style>.card{width:120px;padding:4px;border-left:4px solid #111;border-bottom:2px solid #222}.accent{border-top:3px solid #333;border-right:5px solid #444}</style>
+       <div class="card accent">Sides</div>`,
       { font, width: 320 }
     );
     const card = result.nodes[0];
     if (card?.kind !== "vstack") throw new Error("expected card");
-    expect(card.style.width).toBe(99);
+    expect(card.style.width).toBe(102.75);
     expect(card.style.borderSides).toMatchObject({
+      top: { width: 2.25, color: { r: 0.2 } },
+      right: { width: 3.75, color: { r: 0.26666666666666666 } },
       left: { width: 3, color: { r: 0.06666666666666667 } },
       bottom: { width: 1.5, color: { r: 0.13333333333333333 } }
     });

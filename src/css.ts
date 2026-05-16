@@ -47,10 +47,18 @@ export function parseStyleAttribute(value: string | undefined, fontSize: number)
 export function ruleDeclarationsFor(node: HtmlElementNode, rules: CssRule[]): DeclarationSet {
   const out: DeclarationSet = { declarations: {}, importantDeclarations: {} };
   for (const rule of rules.filter((r) => matchesSelector(node, r.selector)).sort(compareRule)) {
-    Object.assign(out.declarations, rule.declarations);
-    Object.assign(out.importantDeclarations, rule.importantDeclarations);
+    mergeDeclarations(out.declarations, rule.declarations);
+    mergeDeclarations(out.importantDeclarations, rule.importantDeclarations);
   }
   return out;
+}
+
+function mergeDeclarations(target: Partial<CssStyle>, source: Partial<CssStyle>): void {
+  const borderSides = target.borderSides;
+  Object.assign(target, source);
+  if (source.borderSides) {
+    target.borderSides = { ...borderSides, ...source.borderSides };
+  }
 }
 
 function declarationsFromBlock(block: CssNode, fontSize: number): DeclarationSet {
