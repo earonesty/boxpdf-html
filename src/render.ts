@@ -120,11 +120,13 @@ function renderTable(node: StyledElement, options: HtmlToBoxpdfOptions, warnings
     table({
       width: node.style.width ?? options.width,
       columns: inferColumns(rows),
+      columnGap: 0,
+      margin: node.style.margin,
       rows: rows.map((row) =>
         row.children
           .filter((child): child is StyledElement => !("text" in child) && (child.node.tag === "td" || child.node.tag === "th"))
           .map((cell) => ({
-            content: renderBlock(cell, options, warnings),
+            content: renderCellContent(cell, options, warnings),
             padding: cell.style.padding ?? 4,
             background: cell.style.background,
             border: border(cell),
@@ -134,6 +136,12 @@ function renderTable(node: StyledElement, options: HtmlToBoxpdfOptions, warnings
       )
     })
   ];
+}
+
+function renderCellContent(cell: StyledElement, options: HtmlToBoxpdfOptions, warnings: string[]): BoxNode {
+  const children = renderBlockChildren(cell, options, warnings);
+  if (children.length === 1) return children[0]!;
+  return vstack({ gap: cell.style.gap ?? 0 }, ...children);
 }
 
 function tableRows(node: StyledElement): StyledElement[] {

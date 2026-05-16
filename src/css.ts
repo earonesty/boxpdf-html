@@ -2,6 +2,7 @@ import { generate, parse as parseCss, walk } from "css-tree";
 import { parseColor } from "./color.js";
 import { parseLength, parseLineHeight } from "./units.js";
 import type { CssRule, CssStyle, Display, HtmlElementNode } from "./types.js";
+import type { EdgesInput } from "boxpdf";
 
 type CssNode = { type: string; [key: string]: unknown };
 
@@ -114,10 +115,22 @@ function applyDeclaration(out: Partial<CssStyle>, property: string, rawValue: st
       out.height = parseLength(value, fontSize);
       break;
     case "margin":
-      out.margin = parseLength(value, fontSize);
+      out.margin = parseEdges(value, fontSize);
+      break;
+    case "margin-top":
+    case "margin-right":
+    case "margin-bottom":
+    case "margin-left":
+      out.margin = setEdge(out.margin, property.slice("margin-".length), parseLength(value, fontSize));
       break;
     case "padding":
-      out.padding = parseLength(value, fontSize);
+      out.padding = parseEdges(value, fontSize);
+      break;
+    case "padding-top":
+    case "padding-right":
+    case "padding-bottom":
+    case "padding-left":
+      out.padding = setEdge(out.padding, property.slice("padding-".length), parseLength(value, fontSize));
       break;
     case "gap":
       out.gap = parseLength(value, fontSize);
@@ -132,6 +145,25 @@ function applyDeclaration(out: Partial<CssStyle>, property: string, rawValue: st
       out.borderColor = parseColor(value);
       break;
   }
+}
+
+function parseEdges(value: string, fontSize: number): EdgesInput | undefined {
+  const lengths = value
+    .split(/\s+/)
+    .map((part) => parseLength(part, fontSize));
+  if (lengths.some((length) => length === undefined)) return undefined;
+  const [top, right = top, bottom = top, left = right] = lengths as number[];
+  if (top === right && right === bottom && bottom === left) return top;
+  return { top, right, bottom, left };
+}
+
+function setEdge(edges: EdgesInput | undefined, side: string, value: number | undefined): EdgesInput | undefined {
+  if (value === undefined) return edges;
+  const out = typeof edges === "number"
+    ? { top: edges, right: edges, bottom: edges, left: edges }
+    : { ...edges };
+  if (side === "top" || side === "right" || side === "bottom" || side === "left") out[side] = value;
+  return out;
 }
 
 function parseBorder(out: Partial<CssStyle>, value: string, fontSize: number): void {

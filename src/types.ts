@@ -1,4 +1,4 @@
-import type { Node as BoxNode, RGB } from "boxpdf";
+import type { EdgesInput, Node as BoxNode, RGB } from "boxpdf";
 import type { PDFFont } from "pdf-lib";
 
 export interface HtmlToBoxpdfOptions {
@@ -50,8 +50,8 @@ export interface CssStyle {
   verticalAlign: "baseline" | "middle";
   width?: number;
   height?: number;
-  margin?: number;
-  padding?: number;
+  margin?: EdgesInput;
+  padding?: EdgesInput;
   borderWidth?: number;
   borderColor?: RGB;
   gap?: number;

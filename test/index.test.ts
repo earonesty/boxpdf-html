@@ -68,6 +68,18 @@ describe("htmlToBoxpdf", () => {
       width: 320
     });
     expect(result.warnings).toEqual([]);
-    expect(result.nodes[0]).toMatchObject({ kind: "vstack" });
+    expect(result.nodes[0]).toMatchObject({ fragmentation: { kind: "table" } });
+  });
+
+  it("maps table spacing and cell boxes to table primitives", () => {
+    const result = htmlToBoxpdf(
+      `<style>table{width:200px;margin-top:12px}td{padding:6px;border:1px solid #ccc}</style>
+       <table><tr><td>A</td><td>B</td></tr></table>`,
+      { font, width: 320 }
+    );
+    expect(result.nodes[0]).toMatchObject({
+      fragmentation: { kind: "table" },
+      style: { margin: { top: 9 } }
+    });
   });
 });
