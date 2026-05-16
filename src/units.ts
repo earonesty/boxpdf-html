@@ -12,6 +12,14 @@ export function parseLength(value: string | undefined, fontSize: number): number
   return amount * 0.75;
 }
 
+export function parsePercentage(value: string | undefined): number | undefined {
+  if (!value) return undefined;
+  const match = /^(-?[0-9.]+)%$/.exec(value.trim().toLowerCase());
+  if (!match) return undefined;
+  const amount = Number(match[1]);
+  return Number.isFinite(amount) ? amount / 100 : undefined;
+}
+
 export function parseLineHeight(value: string | undefined, fontSize: number): number | undefined {
   if (!value) return undefined;
   const normalized = value.trim().toLowerCase();

@@ -63,6 +63,7 @@ export interface CssStyle {
   textAlign: "left" | "center" | "right";
   verticalAlign: "baseline" | "middle";
   width?: number;
+  widthPercent?: number;
   height?: number;
   margin?: EdgesInput;
   padding?: EdgesInput;

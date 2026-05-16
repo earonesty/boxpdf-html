@@ -1,6 +1,6 @@
 import { generate, parse as parseCss, walk } from "css-tree";
 import { parseColor } from "./color.js";
-import { parseLength, parseLineHeight } from "./units.js";
+import { parseLength, parseLineHeight, parsePercentage } from "./units.js";
 import type { CssRule, CssStyle, Display, HtmlElementNode } from "./types.js";
 import type { EdgesInput } from "boxpdf";
 
@@ -123,7 +123,8 @@ function applyDeclaration(out: Partial<CssStyle>, property: string, rawValue: st
       else if (value.includes("disc")) out.listStyleType = "disc";
       break;
     case "width":
-      out.width = parseLength(value, fontSize);
+      out.widthPercent = parsePercentage(value);
+      out.width = out.widthPercent === undefined ? parseLength(value, fontSize) : undefined;
       break;
     case "height":
       out.height = parseLength(value, fontSize);

@@ -103,6 +103,20 @@ describe("htmlToBoxpdf", () => {
     });
   });
 
+  it("resolves percentage widths against parent content width", () => {
+    const result = htmlToBoxpdf(
+      `<style>.panel{width:300px;padding:10px}table{width:100%}</style>
+       <div class="panel"><table><tr><td>A</td><td>B</td></tr></table></div>`,
+      { font, width: 500 }
+    );
+    const panel = result.nodes[0];
+    if (panel?.kind !== "vstack") throw new Error("expected panel");
+    const tableNode = panel.children[0];
+    if (tableNode?.kind !== "vstack") throw new Error("expected table");
+    expect(panel.style.width).toBe(240);
+    expect(tableNode.style.width).toBe(225);
+  });
+
   it("resolves CSS font families through the helper hook", () => {
     const result = htmlToBoxpdf(`<p style="font-family: Missing, Inter; font-weight: 700">Hello</p>`, {
       font,

@@ -22,7 +22,7 @@ export function htmlToBoxpdf(html: string, options: HtmlToBoxpdfOptions): Render
     ...defaultStyle(options.defaultFontSize ?? 12),
     color: options.defaultColor,
     lineHeight: options.defaultLineHeight
-  });
+  }, options.width);
   return renderStyledTree(styled, options);
 }
 
