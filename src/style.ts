@@ -21,8 +21,15 @@ function styleNode(node: HtmlNode, rules: CssRule[], inherited: CssStyle, contai
 
 function styleElement(node: HtmlElementNode, rules: CssRule[], inherited: CssStyle, containingWidth?: number): StyledElement {
   const tagDefaults = defaultsForTag(node.tag, inherited);
-  const withRules = { ...tagDefaults, ...ruleDeclarationsFor(node, rules) };
-  const style = { ...withRules, ...parseStyleAttribute(node.attrs.style, withRules.fontSize) };
+  const ruleDeclarations = ruleDeclarationsFor(node, rules);
+  const withRules = { ...tagDefaults, ...ruleDeclarations.declarations };
+  const inlineDeclarations = parseStyleAttribute(node.attrs.style, withRules.fontSize);
+  const style = {
+    ...withRules,
+    ...inlineDeclarations.declarations,
+    ...ruleDeclarations.importantDeclarations,
+    ...inlineDeclarations.importantDeclarations
+  };
   if (style.widthPercent !== undefined && containingWidth !== undefined) style.width = containingWidth * style.widthPercent;
   if (style.minWidthPercent !== undefined && containingWidth !== undefined) style.minWidth = containingWidth * style.minWidthPercent;
   if (style.maxWidthPercent !== undefined && containingWidth !== undefined) style.maxWidth = containingWidth * style.maxWidthPercent;

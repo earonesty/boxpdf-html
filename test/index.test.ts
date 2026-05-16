@@ -96,6 +96,20 @@ c</p>`,
     expect(second.runs[0]).toMatchObject({ style: { color: { r: 0.4, g: 0.4, b: 0.4 } } });
   });
 
+  it("cascades important declarations above inline normal declarations", () => {
+    const result = htmlToBoxpdf(
+      `<style>.notice{color:#111!important}.notice strong{color:#222}</style>
+       <p class="notice" style="color:#333">Important <strong style="color:#444!important">inline</strong></p>`,
+      { font, width: 320 }
+    );
+    const block = result.nodes[0];
+    if (block?.kind !== "vstack") throw new Error("expected block");
+    const paragraph = block.children[0];
+    if (paragraph?.kind !== "paragraph") throw new Error("expected paragraph");
+    expect(paragraph.runs[0]).toMatchObject({ style: { color: { r: 0.06666666666666667 } } });
+    expect(paragraph.runs[1]).toMatchObject({ style: { color: { r: 0.26666666666666666 } } });
+  });
+
   it("matches attribute, sibling, and structural pseudo selectors", () => {
     const result = htmlToBoxpdf(
       `<style>

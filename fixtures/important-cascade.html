@@ -1,0 +1,22 @@
+<style>
+  @page { size: Letter; margin: 40pt; }
+  body { margin: 0; font-family: Helvetica, Arial, sans-serif; color: #111; font-size: 13px; }
+  .panel {
+    width: 420px;
+    padding: 14px 16px;
+    border: 1px solid #94a3b8;
+    background: #f8fafc;
+  }
+  h2 { margin: 0 0 10px 0; }
+  p { margin: 0 0 8px 0; line-height: 1.25; }
+  .notice { color: #475569 !important; }
+  .notice strong { color: #0f172a; }
+  .inline-important { color: #166534 !important; }
+  .quiet { color: #7c2d12; }
+</style>
+<div class="panel">
+  <h2>Important cascade</h2>
+  <p class="notice" style="color: #dc2626">Author !important should beat an inline normal color.</p>
+  <p class="notice">Nested <strong class="inline-important">inline important</strong> should still win.</p>
+  <p class="quiet">Normal declarations keep their normal cascade order.</p>
+</div>

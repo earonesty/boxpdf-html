@@ -100,6 +100,7 @@ export type StyledNode = StyledElement | StyledText;
 export interface CssRule {
   selector: string;
   declarations: Partial<CssStyle>;
+  importantDeclarations: Partial<CssStyle>;
   specificity: number;
   order: number;
 }

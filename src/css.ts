@@ -5,6 +5,7 @@ import type { CssRule, CssStyle, Display, HtmlElementNode } from "./types.js";
 import type { EdgesInput } from "boxpdf";
 
 type CssNode = { type: string; [key: string]: unknown };
+export type DeclarationSet = { declarations: Partial<CssStyle>; importantDeclarations: Partial<CssStyle> };
 
 export function parseStylesheets(stylesheets: string[]): CssRule[] {
   let order = 0;
@@ -20,7 +21,8 @@ export function parseStylesheets(stylesheets: string[]): CssRule[] {
       for (const selector of selectorList(prelude)) {
         rules.push({
           selector,
-          declarations,
+          declarations: declarations.declarations,
+          importantDeclarations: declarations.importantDeclarations,
           specificity: specificity(selector),
           order: order++
         });
@@ -30,33 +32,40 @@ export function parseStylesheets(stylesheets: string[]): CssRule[] {
   return rules;
 }
 
-export function parseStyleAttribute(value: string | undefined, fontSize: number): Partial<CssStyle> {
-  if (!value) return {};
-  const declarations: Partial<CssStyle> = {};
+export function parseStyleAttribute(value: string | undefined, fontSize: number): DeclarationSet {
+  const declarations: DeclarationSet = { declarations: {}, importantDeclarations: {} };
+  if (!value) return declarations;
   for (const chunk of value.split(";")) {
     const colon = chunk.indexOf(":");
     if (colon === -1) continue;
-    applyDeclaration(declarations, chunk.slice(0, colon).trim(), chunk.slice(colon + 1).trim(), fontSize);
+    const parsed = stripImportant(chunk.slice(colon + 1).trim());
+    applyDeclaration(parsed.important ? declarations.importantDeclarations : declarations.declarations, chunk.slice(0, colon).trim(), parsed.value, fontSize);
   }
   return declarations;
 }
 
-export function ruleDeclarationsFor(node: HtmlElementNode, rules: CssRule[]): Partial<CssStyle> {
-  const out: Partial<CssStyle> = {};
+export function ruleDeclarationsFor(node: HtmlElementNode, rules: CssRule[]): DeclarationSet {
+  const out: DeclarationSet = { declarations: {}, importantDeclarations: {} };
   for (const rule of rules.filter((r) => matchesSelector(node, r.selector)).sort(compareRule)) {
-    Object.assign(out, rule.declarations);
+    Object.assign(out.declarations, rule.declarations);
+    Object.assign(out.importantDeclarations, rule.importantDeclarations);
   }
   return out;
 }
 
-function declarationsFromBlock(block: CssNode, fontSize: number): Partial<CssStyle> {
-  const out: Partial<CssStyle> = {};
+function declarationsFromBlock(block: CssNode, fontSize: number): DeclarationSet {
+  const out: DeclarationSet = { declarations: {}, importantDeclarations: {} };
   const children = block.children as { forEach: (fn: (node: CssNode) => void) => void } | undefined;
   children?.forEach((node) => {
     if (node.type !== "Declaration") return;
-    applyDeclaration(out, String(node.property), generate(node.value), fontSize);
+    applyDeclaration(node.important ? out.importantDeclarations : out.declarations, String(node.property), generate(node.value), fontSize);
   });
   return out;
+}
+
+function stripImportant(value: string): { value: string; important: boolean } {
+  if (!/!\s*important\s*$/i.test(value)) return { value, important: false };
+  return { value: value.replace(/!\s*important\s*$/i, "").trim(), important: true };
 }
 
 function applyDeclaration(out: Partial<CssStyle>, property: string, rawValue: string, fontSize: number): void {
