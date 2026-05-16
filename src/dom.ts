@@ -9,7 +9,7 @@ export function parseHtml(html: string): ParsedHtml {
   const fragment = parseFragment(html);
   const root: HtmlElementNode = {
     kind: "element",
-    tag: "root",
+    tag: "body",
     attrs: {},
     children: []
   };

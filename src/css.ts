@@ -103,10 +103,15 @@ function applyDeclaration(out: Partial<CssStyle>, property: string, rawValue: st
       out.fontStyle = value === "italic" ? "italic" : "normal";
       break;
     case "line-height":
-      out.lineHeight = parseLineHeight(value, fontSize);
+      if (/^[0-9.]+$/.test(value)) out.lineHeightScale = Number(value);
+      else out.lineHeight = parseLineHeight(value, fontSize);
       break;
     case "text-align":
       if (value === "left" || value === "center" || value === "right") out.textAlign = value;
+      break;
+    case "text-decoration":
+    case "text-decoration-line":
+      out.textDecorationLine = parseTextDecoration(value);
       break;
     case "vertical-align":
       if (value === "middle" || value === "baseline") out.verticalAlign = value;
@@ -147,7 +152,17 @@ function applyDeclaration(out: Partial<CssStyle>, property: string, rawValue: st
     case "border-color":
       out.borderColor = parseColor(value);
       break;
+    case "border-radius":
+      out.borderRadius = parseLength(value.split(/\s+/)[0], fontSize);
+      break;
   }
+}
+
+function parseTextDecoration(value: string): CssStyle["textDecorationLine"] | undefined {
+  if (value === "none") return "none";
+  if (value.includes("underline")) return "underline";
+  if (value.includes("line-through")) return "line-through";
+  return undefined;
 }
 
 function parseFontFamily(value: string): string[] {
@@ -199,18 +214,45 @@ function selectorList(prelude: CssNode): string[] {
 }
 
 function matchesSelector(node: HtmlElementNode, selector: string): boolean {
-  const parts = selector.split(/\s+/).filter(Boolean);
+  const parts = selectorParts(selector);
   if (parts.length === 0) return false;
-  if (!matchesCompound(node, parts[parts.length - 1]!)) return false;
+  const last = parts[parts.length - 1]!;
+  if (last.combinator === "unsupported" || !matchesCompound(node, last.selector)) return false;
 
   let cursor: HtmlElementNode | undefined = node.parent;
   for (let i = parts.length - 2; i >= 0; i -= 1) {
     const part = parts[i]!;
-    while (cursor && !matchesCompound(cursor, part)) cursor = cursor.parent;
+    const combinator = parts[i + 1]!.combinator;
+    if (combinator === "unsupported") return false;
+    if (combinator === ">") {
+      if (!cursor || !matchesCompound(cursor, part.selector)) return false;
+      cursor = cursor.parent;
+      continue;
+    }
+    while (cursor && !matchesCompound(cursor, part.selector)) cursor = cursor.parent;
     if (!cursor) return false;
     cursor = cursor.parent;
   }
   return true;
+}
+
+function selectorParts(selector: string): Array<{ selector: string; combinator: " " | ">" | "unsupported" }> {
+  const tokens = selector.replace(/>/g, " > ").split(/\s+/).filter(Boolean);
+  const parts: Array<{ selector: string; combinator: " " | ">" | "unsupported" }> = [];
+  let nextCombinator: " " | ">" | "unsupported" = " ";
+  for (const token of tokens) {
+    if (token === ">") {
+      nextCombinator = ">";
+      continue;
+    }
+    if (token === "+" || token === "~") {
+      nextCombinator = "unsupported";
+      continue;
+    }
+    parts.push({ selector: token, combinator: nextCombinator });
+    nextCombinator = " ";
+  }
+  return parts;
 }
 
 function matchesCompound(node: HtmlElementNode, selector: string): boolean {

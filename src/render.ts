@@ -11,6 +11,7 @@ import {
   type TextRunStyle
 } from "boxpdf";
 import type { HtmlToBoxpdfOptions, RenderResult, StyledElement, StyledNode, StyledText } from "./types.js";
+import type { EdgesInput } from "boxpdf";
 
 export function renderStyledTree(root: StyledElement, options: HtmlToBoxpdfOptions): RenderResult {
   const warnings: string[] = [];
@@ -38,13 +39,14 @@ function renderBlock(node: StyledElement, options: HtmlToBoxpdfOptions, warnings
   const children = renderBlockChildren(node, options, warnings);
   return vstack(
     {
-      width: node.style.width,
-      height: node.style.height,
+      width: cssBoxWidth(node),
+      height: cssBoxHeight(node),
       margin: node.style.margin,
       padding: node.style.padding,
       gap: node.style.gap ?? 0,
       background: node.style.background,
-      border: border(node)
+      border: border(node),
+      borderRadius: node.style.borderRadius
     },
     ...children
   );
@@ -57,7 +59,7 @@ function renderBlockChildren(node: StyledElement, options: HtmlToBoxpdfOptions, 
   const flushInline = (): void => {
     const runs = collectInlineRuns(inlineBuffer, options);
     if (runs.length > 0) {
-      out.push(paragraph({ width: node.style.width, align: node.style.textAlign }, ...runs));
+      out.push(paragraph({ width: contentWidth(node), align: node.style.textAlign }, ...runs));
     }
     inlineBuffer = [];
   };
@@ -77,15 +79,16 @@ function renderBlockChildren(node: StyledElement, options: HtmlToBoxpdfOptions, 
 function renderFlex(node: StyledElement, options: HtmlToBoxpdfOptions, warnings: string[]): BoxNode {
   const children = node.children.flatMap((child) => renderNode(child, options, warnings));
   const style = {
-    width: node.style.width,
-    height: node.style.height,
+    width: cssBoxWidth(node),
+    height: cssBoxHeight(node),
     margin: node.style.margin,
     padding: node.style.padding,
     gap: node.style.gap ?? 0,
     align: node.style.alignItems,
     justify: node.style.justifyContent,
     background: node.style.background,
-    border: border(node)
+    border: border(node),
+    borderRadius: node.style.borderRadius
   };
   return node.style.flexDirection === "row" ? hstack(style, ...children) : vstack(style, ...children);
 }
@@ -93,7 +96,7 @@ function renderFlex(node: StyledElement, options: HtmlToBoxpdfOptions, warnings:
 function renderInlineGroup(node: StyledElement, options: HtmlToBoxpdfOptions, warnings: string[]): BoxNode[] {
   const runs = collectInlineRuns([node], options);
   if (runs.length === 0) return [];
-  return [paragraph({ width: node.style.width, align: node.style.textAlign }, ...runs)];
+  return [paragraph({ width: contentWidth(node), align: node.style.textAlign }, ...runs)];
 }
 
 function collectInlineRuns(nodes: StyledNode[], options: HtmlToBoxpdfOptions): ParagraphItem[] {
@@ -118,7 +121,7 @@ function renderTable(node: StyledElement, options: HtmlToBoxpdfOptions, warnings
   }
   return [
     table({
-      width: node.style.width ?? options.width,
+      width: cssBoxWidth(node) ?? options.width,
       columns: inferColumns(rows),
       columnGap: 0,
       margin: node.style.margin,
@@ -130,6 +133,7 @@ function renderTable(node: StyledElement, options: HtmlToBoxpdfOptions, warnings
             padding: cell.style.padding ?? 4,
             background: cell.style.background,
             border: border(cell),
+            borderRadius: cell.style.borderRadius,
             align: cell.style.textAlign,
             valign: cell.style.verticalAlign === "middle" ? "middle" : "top"
           }))
@@ -170,6 +174,35 @@ function inferColumns(rows: StyledElement[]): Array<{ width: `${number}fr` }> {
   return Array.from({ length: count }, () => ({ width: "1fr" as const }));
 }
 
+function cssBoxWidth(node: StyledElement): number | undefined {
+  if (node.style.width === undefined) return undefined;
+  const padding = edges(node.style.padding);
+  const borderWidth = node.style.borderWidth ?? 0;
+  return node.style.width + padding.left + padding.right + borderWidth * 2;
+}
+
+function cssBoxHeight(node: StyledElement): number | undefined {
+  if (node.style.height === undefined) return undefined;
+  const padding = edges(node.style.padding);
+  const borderWidth = node.style.borderWidth ?? 0;
+  return node.style.height + padding.top + padding.bottom + borderWidth * 2;
+}
+
+function contentWidth(node: StyledElement): number | undefined {
+  return node.style.width;
+}
+
+function edges(input: EdgesInput | undefined): { top: number; right: number; bottom: number; left: number } {
+  if (input === undefined) return { top: 0, right: 0, bottom: 0, left: 0 };
+  if (typeof input === "number") return { top: input, right: input, bottom: input, left: input };
+  return {
+    top: input.top ?? 0,
+    right: input.right ?? 0,
+    bottom: input.bottom ?? 0,
+    left: input.left ?? 0
+  };
+}
+
 function textOptions(node: StyledText, options: HtmlToBoxpdfOptions) {
   return {
     ...runStyle(node, options),
@@ -184,7 +217,9 @@ function runStyle(node: StyledText, options: HtmlToBoxpdfOptions): TextRunStyle 
     size: node.style.fontSize,
     font: fontFor(node, options),
     color: node.style.color ?? options.defaultColor,
-    lineHeight: node.style.lineHeight
+    lineHeight: node.style.lineHeight,
+    underline: node.style.textDecorationLine === "underline",
+    strikethrough: node.style.textDecorationLine === "line-through"
   };
 }
 

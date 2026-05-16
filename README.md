@@ -37,9 +37,9 @@ Fonts must be supplied by the caller. `font`, `boldFont`, and `italicFont` are t
 
 - HTML fragment parsing through `parse5`, including parser-inserted table sections.
 - Stylesheet and inline style parsing through `css-tree`.
-- Simple selectors: tag, class, id, and descendant selectors.
+- Simple selectors: tag, class, id, descendant selectors, and direct-child selectors.
 - Common document boxes: block, inline, inline-block, flex row/column, and table.
-- Common text and box styles: color, background color, font family/size/weight/style, line height, text align, vertical align, width, height, margin, padding, gap, and simple borders.
+- Common text and box styles: color, background color, font family/size/weight/style, line height, text decoration, text align, vertical align, width, height, margin, padding, gap, simple borders, and border radius.
 
 The goal for `0.1` is a small, predictable translator pipeline that is easy to extend. It does not try to emulate browser layout exhaustively.
 

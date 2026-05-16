@@ -1,0 +1,27 @@
+<style>
+  @page { size: Letter; margin: 40pt; }
+  body { margin: 0; font-family: Helvetica, Arial, sans-serif; color: #111; font-size: 13px; }
+  .panel {
+    width: 390px;
+    padding: 14px 16px;
+    border: 1px solid #94a3b8;
+    border-radius: 8px;
+    background: #f8fafc;
+  }
+  .panel > h2 { margin: 0 0 10px 0; }
+  .panel > p { margin: 0 0 12px 0; line-height: 1.25; }
+  .note { color: #64748b; text-decoration: underline; }
+  .danger { color: #991b1b; text-decoration: line-through; }
+  .callout {
+    margin-top: 12px;
+    padding: 8px 10px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    background: #ffffff;
+  }
+</style>
+<div class="panel">
+  <h2>CSS basics</h2>
+  <p>Direct child selectors, <span class="note">underlines</span>, and <span class="danger">strike text</span>.</p>
+  <div class="callout">Rounded borders and directional spacing should match the reference.</div>
+</div>

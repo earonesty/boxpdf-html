@@ -22,6 +22,7 @@ function styleElement(node: HtmlElementNode, rules: CssRule[], inherited: CssSty
   const tagDefaults = defaultsForTag(node.tag, inherited);
   const withRules = { ...tagDefaults, ...ruleDeclarationsFor(node, rules) };
   const style = { ...withRules, ...parseStyleAttribute(node.attrs.style, withRules.fontSize) };
+  if (style.lineHeightScale !== undefined) style.lineHeight = style.fontSize * style.lineHeightScale;
   const inheritedForChildren = inherit(style);
   const children = node.children
     .map((child) => styleNode(child, rules, inheritedForChildren))
@@ -52,15 +53,34 @@ function defaultsForTag(tag: string, inherited: CssStyle): CssStyle {
     background: undefined,
     borderWidth: undefined,
     borderColor: undefined,
+    borderRadius: undefined,
     width: undefined,
     height: undefined
   };
   if (tag === "strong" || tag === "b" || tag === "th") style.fontWeight = "bold";
   if (tag === "em" || tag === "i") style.fontStyle = "italic";
-  if (tag === "h1") Object.assign(style, { fontSize: inherited.fontSize * 2, fontWeight: "bold", margin: 12 });
-  if (tag === "h2") Object.assign(style, { fontSize: inherited.fontSize * 1.5, fontWeight: "bold", margin: 10 });
-  if (tag === "h3") Object.assign(style, { fontSize: inherited.fontSize * 1.25, fontWeight: "bold", margin: 8 });
-  if (tag === "p") style.margin = 6;
+  if (tag === "h1") {
+    Object.assign(style, {
+      fontSize: inherited.fontSize * 2,
+      fontWeight: "bold",
+      margin: { top: 0.67 * inherited.fontSize * 2, bottom: 0.67 * inherited.fontSize * 2 }
+    });
+  }
+  if (tag === "h2") {
+    Object.assign(style, {
+      fontSize: inherited.fontSize * 1.5,
+      fontWeight: "bold",
+      margin: { top: 0.83 * inherited.fontSize * 1.5, bottom: 0.83 * inherited.fontSize * 1.5 }
+    });
+  }
+  if (tag === "h3") {
+    Object.assign(style, {
+      fontSize: inherited.fontSize * 1.17,
+      fontWeight: "bold",
+      margin: { top: inherited.fontSize * 1.17, bottom: inherited.fontSize * 1.17 }
+    });
+  }
+  if (tag === "p") style.margin = { top: inherited.fontSize, bottom: inherited.fontSize };
   if (tag === "br") style.display = "inline";
   return style;
 }
@@ -74,6 +94,7 @@ function inherit(style: CssStyle): CssStyle {
     background: undefined,
     borderWidth: undefined,
     borderColor: undefined,
+    borderRadius: undefined,
     width: undefined,
     height: undefined
   };

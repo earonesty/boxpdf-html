@@ -100,4 +100,57 @@ describe("htmlToBoxpdf", () => {
       ]
     });
   });
+
+  it("maps visible text and box styling", () => {
+    const result = htmlToBoxpdf(
+      `<style>.card > p{border-radius:8px;text-decoration:underline}</style>
+       <div class="card"><p style="border:1px solid #ccc">Hello</p><section><p>Nested</p></section></div>`,
+      { font, width: 320 }
+    );
+    expect(result.nodes[0]).toMatchObject({
+      kind: "vstack",
+      children: [
+        {
+          kind: "vstack",
+          style: { borderRadius: 6 },
+          children: [
+            {
+              kind: "paragraph",
+              runs: [{ style: { underline: true } }]
+            }
+          ]
+        },
+        {
+          kind: "vstack",
+          children: [
+            {
+              kind: "vstack",
+              children: [
+                {
+                  kind: "paragraph",
+                  runs: [{ style: { underline: false } }]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    });
+  });
+
+  it("applies body styles to fragment children", () => {
+    const result = htmlToBoxpdf(`<style>body{font-size:13px;line-height:1.25;color:#666}</style><p>Hello</p>`, {
+      font,
+      width: 320
+    });
+    expect(result.nodes[0]).toMatchObject({
+      kind: "vstack",
+      children: [
+        {
+          kind: "paragraph",
+          runs: [{ style: { size: 9.75, lineHeight: 12.1875 } }]
+        }
+      ]
+    });
+  });
 });

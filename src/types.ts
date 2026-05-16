@@ -59,6 +59,7 @@ export interface CssStyle {
   fontWeight: FontWeight;
   fontStyle: FontStyle;
   lineHeight?: number;
+  lineHeightScale?: number;
   textAlign: "left" | "center" | "right";
   verticalAlign: "baseline" | "middle";
   width?: number;
@@ -67,6 +68,8 @@ export interface CssStyle {
   padding?: EdgesInput;
   borderWidth?: number;
   borderColor?: RGB;
+  borderRadius?: number;
+  textDecorationLine?: "none" | "underline" | "line-through";
   gap?: number;
 }
 
