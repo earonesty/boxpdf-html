@@ -13,6 +13,12 @@ export interface HtmlToBoxpdfOptions {
   defaultLineHeight?: number;
   defaultColor?: RGB;
   profile?: HtmlProfileCallback;
+  diagnostics?: HtmlDiagnosticsOptions;
+}
+
+export interface HtmlDiagnosticsOptions {
+  unsupportedCss?: boolean;
+  sampleLimit?: number;
 }
 
 export interface HtmlProfileEvent {
@@ -84,6 +90,7 @@ export type CssLengthPercentage = { length: number; percent: number };
 export interface CssStyle {
   display: Display;
   float?: "none" | "left" | "right";
+  order?: number;
   flexDirection: "row" | "row-reverse" | "column" | "column-reverse";
   alignItems: "start" | "center" | "end" | "stretch" | "baseline";
   justifyContent: "start" | "center" | "end" | "between" | "around" | "evenly";
@@ -116,6 +123,7 @@ export interface CssStyle {
   maxWidthPercent?: number;
   maxWidthCalc?: CssLengthPercentage;
   height?: number;
+  aspectRatio?: number;
   margin?: EdgesInput;
   marginAutoLeft?: boolean;
   marginAutoRight?: boolean;
@@ -175,4 +183,16 @@ export interface CssDeclaration {
 export interface RenderResult {
   nodes: BoxNode[];
   warnings: string[];
+  diagnostics?: HtmlDiagnostics;
+}
+
+export interface HtmlDiagnostics {
+  unsupportedCss: HtmlUnsupportedCss[];
+}
+
+export interface HtmlUnsupportedCss {
+  property: string;
+  value: string;
+  count: number;
+  samples?: string[];
 }

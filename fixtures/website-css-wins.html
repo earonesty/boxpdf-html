@@ -49,11 +49,33 @@
       grid-column: 2 / span 2;
       background: #f1f5f9;
     }
+    .ordered {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .ordered span {
+      padding: 4px 8px;
+      border: 1px solid #64748b;
+      background: #f8fafc;
+    }
+    .ordered .first {
+      order: -1;
+      background: #dcfce7;
+    }
+    .ratio {
+      width: 160px;
+      aspect-ratio: 16 / 9;
+      background: #fee2e2;
+      border: 1px solid #991b1b;
+      margin-bottom: 12px;
+    }
     img {
       width: 160px;
-      height: 90px;
+      aspect-ratio: 16 / 9;
       border: 1px solid #777;
       display: block;
+      object-fit: cover;
     }
   </style>
 </head>
@@ -72,6 +94,16 @@
       <div class="cell wide">This item starts in column two and spans the wider remaining area.</div>
       <div class="cell">Next row starts normally.</div>
     </div>
+    <div class="ordered">
+      <span>DOM first</span>
+      <span class="first">Ordered first</span>
+      <span>DOM third</span>
+    </div>
+    <div class="ratio"></div>
+    <picture>
+      <source srcset="background-source.png 320w">
+      <img src="missing-news-photo.jpg" alt="">
+    </picture>
   </div>
 </body>
 </html>

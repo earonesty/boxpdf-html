@@ -33,7 +33,7 @@ function renderNode(node: StyledNode, options: HtmlToBoxpdfOptions, warnings: st
   if (node.style.display === "none") return [];
   if (node.style.display === "contents") return node.children.flatMap((child) => renderNode(child, options, warnings));
   if (node.node.tag === "img") {
-    const rendered = renderImageNode(node, options, warnings);
+    const rendered = renderImageForLayout(node, options, warnings);
     return rendered ? [rendered] : [];
   }
   if (node.node.tag === "br") return [text("", textOptions({ style: node.style } as StyledText, options))];
@@ -162,7 +162,8 @@ function attachFloatsToNode(node: BoxNode, floats: ParagraphFloat[]): { node: Bo
 }
 
 function renderFlex(node: StyledElement, options: HtmlToBoxpdfOptions, warnings: string[]): BoxNode {
-  const sourceChildren = node.style.flexDirection.endsWith("-reverse") ? [...node.children].reverse() : node.children;
+  const ordered = orderedChildren(node.children);
+  const sourceChildren = node.style.flexDirection.endsWith("-reverse") ? [...ordered].reverse() : ordered;
   const children = sourceChildren.flatMap((child) => renderFlexChild(child, options, warnings)).map(defaultFlexItem);
   const style = {
     width: cssBoxWidth(node),
@@ -189,6 +190,10 @@ function renderFlex(node: StyledElement, options: HtmlToBoxpdfOptions, warnings:
 }
 
 function renderFlexChild(node: StyledNode, options: HtmlToBoxpdfOptions, warnings: string[]): BoxNode[] {
+  if (!("text" in node) && node.node.tag === "img") {
+    const rendered = renderImageForLayout(node, options, warnings);
+    return rendered ? [rendered] : [];
+  }
   if (!("text" in node) && isInlineContainer(node) && hasBoxStyling(node)) return [renderBlock(node, options, warnings)];
   return renderNode(node, options, warnings);
 }
@@ -238,7 +243,7 @@ function gridRows(node: StyledElement, tracks: number[], options: HtmlToBoxpdfOp
   let row: GridCell[] = [];
   let cursor = 0;
   const gap = node.style.columnGap ?? node.style.gap ?? 0;
-  for (const child of node.children.filter(hasRenderedContent)) {
+  for (const child of orderedChildren(node.children).filter(hasRenderedContent)) {
     const rendered = renderNode(child, options, warnings);
     if (rendered.length === 0) continue;
     const requestedStart = !("text" in child) ? child.style.gridColumnStart : undefined;
@@ -337,6 +342,17 @@ function inlineGridIntrinsicWidth(children: BoxNode[], tracks: GridTrack[] | und
 function hasRenderedContent(node: StyledNode): boolean {
   if ("text" in node) return node.text.trim().length > 0;
   return node.style.display !== "none";
+}
+
+function orderedChildren(nodes: StyledNode[]): StyledNode[] {
+  return nodes
+    .map((node, index) => ({ node, index }))
+    .sort((a, b) => orderFor(a.node) - orderFor(b.node) || a.index - b.index)
+    .map(({ node }) => node);
+}
+
+function orderFor(node: StyledNode): number {
+  return "text" in node ? 0 : node.style.order ?? 0;
 }
 
 function resolveGridTracks(tracks: GridTrack[] | undefined, width: number | undefined, gap: number): number[] {
@@ -461,9 +477,9 @@ function collectInlineRuns(nodes: StyledNode[], options: HtmlToBoxpdfOptions, wa
       continue;
     }
     if (node.node.tag === "img") {
-      const rendered = renderImageNode(node, options, warnings);
+      const rendered = renderImageForLayout(node, options, warnings);
       if (rendered) {
-        const measured = imageSize(node, options);
+        const measured = measure(rendered, contentWidth(node) ?? options.width ?? Number.POSITIVE_INFINITY);
         runs.push(inlineNode(rendered, { width: measured.width, height: measured.height, verticalAlign: node.style.verticalAlign === "middle" ? "middle" : undefined }));
       }
       continue;
@@ -488,7 +504,38 @@ function renderAtomicInlineNode(node: StyledElement, options: HtmlToBoxpdfOption
 }
 
 function renderImageNode(node: StyledElement, options: HtmlToBoxpdfOptions, warnings: string[]): BoxNode | undefined {
-  const src = node.node.attrs.src;
+  return renderImageContent(node, options, warnings, node.style.margin, true);
+}
+
+function renderImageForLayout(node: StyledElement, options: HtmlToBoxpdfOptions, warnings: string[]): BoxNode | undefined {
+  if (!hasImageBoxStyling(node)) return renderImageNode(node, options, warnings);
+  const content = renderImageContent(node, options, warnings, undefined, false);
+  if (!content) return undefined;
+  return vstack(
+    {
+      width: cssBoxWidth(node),
+      height: cssBoxHeight(node),
+      margin: node.style.margin,
+      padding: layoutPadding(node),
+      background: node.style.background,
+      border: border(node),
+      borderSides: node.style.borderSides,
+      borderRadius: node.style.borderRadius,
+      overflow: node.style.overflow,
+      shrink: 0
+    },
+    content
+  );
+}
+
+function renderImageContent(
+  node: StyledElement,
+  options: HtmlToBoxpdfOptions,
+  warnings: string[],
+  margin: EdgesInput | undefined,
+  decoratedFallback: boolean
+): BoxNode | undefined {
+  const src = imageUrl(node);
   if (!src) {
     warnings.push("img without a resolvable src was skipped");
     return undefined;
@@ -501,11 +548,11 @@ function renderImageNode(node: StyledElement, options: HtmlToBoxpdfOptions, warn
       return vstack({
         width: size.width,
         height: size.height,
-        margin: node.style.margin,
-        border: border(node),
-        borderSides: node.style.borderSides,
-        borderRadius: node.style.borderRadius,
-        background: node.style.background
+        margin,
+        border: decoratedFallback ? border(node) : undefined,
+        borderSides: decoratedFallback ? node.style.borderSides : undefined,
+        borderRadius: decoratedFallback ? node.style.borderRadius : undefined,
+        background: decoratedFallback ? node.style.background : undefined
       });
     }
     warnings.push(`img src "${src}" did not resolve`);
@@ -513,26 +560,91 @@ function renderImageNode(node: StyledElement, options: HtmlToBoxpdfOptions, warn
   }
   const size = imageSize(node, options, pdfImage);
   if (node.style.objectFit === "contain" || node.style.objectFit === "cover") {
-    return imageFit(pdfImage, { width: size.width, height: size.height, fit: node.style.objectFit, margin: node.style.margin });
+    return imageFit(pdfImage, { width: size.width, height: size.height, fit: node.style.objectFit, margin });
   }
-  return boxImage(pdfImage, { width: size.width, height: size.height, margin: node.style.margin });
+  return boxImage(pdfImage, { width: size.width, height: size.height, margin });
 }
 
 function hasExplicitImageSize(node: StyledElement): boolean {
   return node.style.width !== undefined || node.style.height !== undefined || node.node.attrs.width !== undefined || node.node.attrs.height !== undefined;
 }
 
+function hasImageBoxStyling(node: StyledElement): boolean {
+  return Boolean(
+    node.style.background ||
+      node.style.borderWidth ||
+      node.style.borderSides ||
+      node.style.borderRadius ||
+      node.style.padding ||
+      node.style.overflow
+  );
+}
+
 function imageSize(node: StyledElement, options: HtmlToBoxpdfOptions, resolvedImage?: ReturnType<NonNullable<HtmlToBoxpdfOptions["resolveImage"]>>): { width: number; height: number } {
-  const src = node.node.attrs.src;
+  const src = imageUrl(node);
   const pdfImage = resolvedImage ?? (src ? options.resolveImage?.({ url: src, baseUrl: options.baseUrl }) : undefined);
   const naturalWidth = Math.max(1, (pdfImage?.width ?? 1) * 0.75);
   const naturalHeight = Math.max(1, (pdfImage?.height ?? 1) * 0.75);
+  const naturalRatio = node.style.aspectRatio ?? (naturalWidth / naturalHeight);
   const width = node.style.width;
   const height = node.style.height;
   if (width !== undefined && height !== undefined) return { width, height };
-  if (width !== undefined) return { width, height: width * (naturalHeight / naturalWidth) };
-  if (height !== undefined) return { width: height * (naturalWidth / naturalHeight), height };
+  if (width !== undefined) return { width, height: width / naturalRatio };
+  if (height !== undefined) return { width: height * naturalRatio, height };
   return { width: naturalWidth, height: naturalHeight };
+}
+
+function imageUrl(node: StyledElement): string | undefined {
+  if (node.node.parent?.tag === "picture") {
+    for (const child of node.node.parent.children) {
+      if (child.kind !== "element") continue;
+      if (child === node.node) break;
+      if (child.tag !== "source") continue;
+      const selected = srcsetUrl(child.attrs.srcset, targetImageCssWidth(node));
+      if (selected) return selected;
+    }
+  }
+  return srcsetUrl(node.node.attrs.srcset, targetImageCssWidth(node)) ?? node.node.attrs.src;
+}
+
+function srcsetUrl(value: string | undefined, targetCssPx?: number): string | undefined {
+  const candidates = srcsetCandidates(value);
+  if (candidates.length === 0) return undefined;
+  const widthCandidates = candidates.filter((candidate) => candidate.width !== undefined);
+  if (widthCandidates.length > 0) {
+    const sorted = widthCandidates.sort((a, b) => a.width! - b.width!);
+    if (targetCssPx !== undefined) return sorted.find((candidate) => candidate.width! >= targetCssPx)?.url ?? sorted[sorted.length - 1]?.url;
+    return sorted[sorted.length - 1]?.url;
+  }
+  const densityCandidates = candidates.filter((candidate) => candidate.density !== undefined).sort((a, b) => a.density! - b.density!);
+  if (densityCandidates.length > 0) return densityCandidates.find((candidate) => candidate.density! >= 1)?.url ?? densityCandidates[densityCandidates.length - 1]?.url;
+  return candidates[0]?.url;
+}
+
+function srcsetCandidates(value: string | undefined): Array<{ url: string; width?: number; density?: number }> {
+  if (!value) return [];
+  return value
+    .split(",")
+    .map((raw) => raw.trim())
+    .filter(Boolean)
+    .map((candidate): { url: string; width?: number; density?: number } | undefined => {
+      const [url, descriptor] = candidate.split(/\s+/, 2);
+      if (!url) return undefined;
+      if (descriptor?.endsWith("w")) {
+        const width = Number.parseFloat(descriptor.slice(0, -1));
+        return Number.isFinite(width) && width > 0 ? { url, width } : { url };
+      }
+      if (descriptor?.endsWith("x")) {
+        const density = Number.parseFloat(descriptor.slice(0, -1));
+        return Number.isFinite(density) && density > 0 ? { url, density } : { url };
+      }
+      return { url };
+    })
+    .filter((candidate): candidate is { url: string; width?: number; density?: number } => candidate !== undefined);
+}
+
+function targetImageCssWidth(node: StyledElement): number | undefined {
+  return node.style.width === undefined ? undefined : node.style.width / 0.75;
 }
 
 function renderTable(node: StyledElement, options: HtmlToBoxpdfOptions, warnings: string[]): BoxNode[] {

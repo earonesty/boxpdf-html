@@ -6,6 +6,7 @@ import type { Border, EdgesInput } from "boxpdf";
 
 type CssNode = { type: string; [key: string]: unknown };
 export type DeclarationSet = { declarations: Partial<CssStyle>; importantDeclarations: Partial<CssStyle> };
+export type UnsupportedCssSink = (declaration: CssDeclaration) => void;
 
 export function parseStylesheets(stylesheets: string[]): CssRule[] {
   let order = 0;
@@ -32,13 +33,18 @@ export function parseStylesheets(stylesheets: string[]): CssRule[] {
   return rules;
 }
 
-export function parseStyleAttribute(value: string | undefined, fontSize: number, customProperties: Record<string, string> = {}): DeclarationSet {
+export function parseStyleAttribute(
+  value: string | undefined,
+  fontSize: number,
+  customProperties: Record<string, string> = {},
+  unsupportedCss?: UnsupportedCssSink
+): DeclarationSet {
   const declarations: DeclarationSet = { declarations: {}, importantDeclarations: {} };
   if (!value) return declarations;
   const raw = rawDeclarationsFromStyleAttribute(value);
   const vars = mergeCustomProperties(customProperties, raw.declarations, raw.importantDeclarations);
-  parseDeclarationsInto(declarations.declarations, raw.declarations, fontSize, vars);
-  parseDeclarationsInto(declarations.importantDeclarations, raw.importantDeclarations, fontSize, vars);
+  parseDeclarationsInto(declarations.declarations, raw.declarations, fontSize, vars, unsupportedCss);
+  parseDeclarationsInto(declarations.importantDeclarations, raw.importantDeclarations, fontSize, vars, unsupportedCss);
   return declarations;
 }
 
@@ -46,7 +52,8 @@ export function ruleDeclarationsFor(
   node: HtmlElementNode,
   rules: CssRule[],
   fontSize: number,
-  customProperties: Record<string, string> = {}
+  customProperties: Record<string, string> = {},
+  unsupportedCss?: UnsupportedCssSink
 ): DeclarationSet {
   const out: DeclarationSet = { declarations: {}, importantDeclarations: {} };
   const declarations: CssDeclaration[] = [];
@@ -56,8 +63,8 @@ export function ruleDeclarationsFor(
     importantDeclarations.push(...rule.importantDeclarations);
   }
   const vars = mergeCustomProperties(customProperties, declarations, importantDeclarations);
-  parseDeclarationsInto(out.declarations, declarations, fontSize, vars);
-  parseDeclarationsInto(out.importantDeclarations, importantDeclarations, fontSize, vars);
+  parseDeclarationsInto(out.declarations, declarations, fontSize, vars, unsupportedCss);
+  parseDeclarationsInto(out.importantDeclarations, importantDeclarations, fontSize, vars, unsupportedCss);
   return out;
 }
 
@@ -96,15 +103,43 @@ function parseDeclarationsInto(
   out: Partial<CssStyle>,
   declarations: CssDeclaration[],
   fontSize: number,
-  customProperties: Record<string, string>
+  customProperties: Record<string, string>,
+  unsupportedCss?: UnsupportedCssSink
 ): void {
   for (const declaration of declarations) {
     const property = declaration.property.trim();
     if (property.startsWith("--")) continue;
+    if (!isSupportedCssProperty(property)) {
+      unsupportedCss?.(declaration);
+      continue;
+    }
     applyDeclaration(out, property, resolveVars(declaration.value, customProperties), fontSize);
   }
   const vars = customPropertiesFrom(declarations, customProperties);
   if (Object.keys(vars).length > 0) out.customProperties = vars;
+}
+
+const supportedCssProperties = new Set([
+  "display", "float", "order", "flex-direction", "align-items", "justify-content",
+  "color", "background", "background-color", "background-image", "background-size", "background-repeat", "background-position",
+  "object-fit", "overflow", "overflow-x", "overflow-y",
+  "font-size", "font", "font-family", "font-weight", "font-style", "line-height",
+  "white-space", "text-align", "text-decoration", "text-decoration-line", "text-transform", "text-indent", "vertical-align",
+  "box-sizing", "position", "top", "right", "bottom", "left", "inset", "inset-block", "inset-inline", "inset-block-start", "inset-block-end", "inset-inline-start", "inset-inline-end",
+  "z-index", "list-style", "list-style-type",
+  "width", "min-width", "max-width", "height", "aspect-ratio",
+  "margin", "margin-block", "margin-inline", "margin-block-start", "margin-block-end", "margin-inline-start", "margin-inline-end", "margin-top", "margin-right", "margin-bottom", "margin-left",
+  "padding", "padding-block", "padding-inline", "padding-block-start", "padding-block-end", "padding-inline-start", "padding-inline-end", "padding-top", "padding-right", "padding-bottom", "padding-left",
+  "gap", "column-gap", "grid-column-gap", "row-gap", "grid-row-gap",
+  "grid-template-columns", "grid-column", "grid-column-start", "grid-column-end",
+  "border", "border-top", "border-right", "border-bottom", "border-left", "border-block", "border-inline", "border-block-start", "border-block-end", "border-inline-start", "border-inline-end",
+  "border-width", "border-top-width", "border-right-width", "border-bottom-width", "border-left-width", "border-block-start-width", "border-block-end-width", "border-inline-start-width", "border-inline-end-width",
+  "border-color", "border-top-color", "border-right-color", "border-bottom-color", "border-left-color", "border-block-start-color", "border-block-end-color", "border-inline-start-color", "border-inline-end-color",
+  "border-radius", "border-collapse"
+]);
+
+function isSupportedCssProperty(property: string): boolean {
+  return supportedCssProperties.has(property.trim().toLowerCase());
 }
 
 function mergeCustomProperties(
@@ -201,6 +236,11 @@ function applyDeclaration(out: Partial<CssStyle>, property: string, rawValue: st
     case "float":
       if (value === "none" || value === "left" || value === "right") out.float = value;
       break;
+    case "order": {
+      const order = Number.parseInt(value, 10);
+      if (Number.isFinite(order)) out.order = order;
+      break;
+    }
     case "flex-direction":
       if (value === "row" || value === "row-reverse" || value === "column" || value === "column-reverse") out.flexDirection = value;
       break;
@@ -352,6 +392,9 @@ function applyDeclaration(out: Partial<CssStyle>, property: string, rawValue: st
       break;
     case "height":
       out.height = parseLength(value, fontSize);
+      break;
+    case "aspect-ratio":
+      out.aspectRatio = parseAspectRatio(value);
       break;
     case "margin":
       applyMargin(out, value, fontSize);
@@ -508,6 +551,19 @@ function applyDeclaration(out: Partial<CssStyle>, property: string, rawValue: st
       if (value === "collapse" || value === "separate") out.borderCollapse = value;
       break;
   }
+}
+
+function parseAspectRatio(value: string): number | undefined {
+  const normalized = value.replace(/\bauto\b/g, "").trim();
+  if (!normalized) return undefined;
+  const slash = /^([0-9.]+)\s*\/\s*([0-9.]+)$/.exec(normalized);
+  if (slash) {
+    const width = Number(slash[1]);
+    const height = Number(slash[2]);
+    return Number.isFinite(width) && Number.isFinite(height) && width > 0 && height > 0 ? width / height : undefined;
+  }
+  const ratio = Number(normalized);
+  return Number.isFinite(ratio) && ratio > 0 ? ratio : undefined;
 }
 
 function setLengthPercentage(out: Partial<CssStyle>, property: "width" | "minWidth" | "maxWidth", value: string, fontSize: number): void {

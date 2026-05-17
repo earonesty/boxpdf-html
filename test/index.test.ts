@@ -547,6 +547,26 @@ c</p>`,
     expect(columnFirst.children[0]).toMatchObject({ kind: "paragraph", runs: [{ text: "B" }] });
   });
 
+  it("orders flex and grid items with CSS order", () => {
+    const flex = htmlToBoxpdf(
+      `<div style="display:flex"><span style="order:2">A</span><span style="order:1">B</span><span>C</span></div>`,
+      { font, width: 300 }
+    );
+    const grid = htmlToBoxpdf(
+      `<style>.grid{display:grid;width:300px;grid-template-columns:1fr 1fr}.last{order:2}.first{order:-1}</style>
+       <div class="grid"><div class="last">A</div><div>B</div><div class="first">C</div></div>`,
+      { font, width: 300 }
+    );
+    const flexNode = flex.nodes[0];
+    const gridNode = grid.nodes[0];
+    if (flexNode?.kind !== "hstack" || gridNode?.kind !== "vstack") throw new Error("expected flex and grid boxes");
+    const firstFlex = flexNode.children[0];
+    const firstGridRow = gridNode.children[0];
+    if (firstFlex?.kind !== "paragraph" || firstGridRow?.kind !== "hstack") throw new Error("expected rendered children");
+    expect(firstFlex.runs.map((item) => ("text" in item ? item.text : "")).join("")).toBe("C");
+    expect(firstGridRow.children[0]).toMatchObject({ kind: "vstack", children: [{ kind: "paragraph", runs: [{ text: "C" }] }] });
+  });
+
   it("places grid items with grid-column spans", () => {
     const result = htmlToBoxpdf(
       `<style>.grid{display:grid;width:300px;grid-template-columns:1fr 2fr 1fr;column-gap:10px}.wide{grid-column:2 / span 2}</style>
@@ -566,6 +586,47 @@ c</p>`,
     const result = htmlToBoxpdf(`<img src="missing.jpg" width="200" height="100">`, { font, width: 300 });
     expect(result.warnings).toContain(`img src "missing.jpg" did not resolve; preserved its layout box`);
     expect(result.nodes[0]).toMatchObject({ kind: "vstack", style: { width: 150, height: 75 } });
+  });
+
+  it("uses CSS aspect-ratio for missing dimensions", () => {
+    const result = htmlToBoxpdf(`<div style="width:160px;aspect-ratio:16 / 9"></div><div style="height:50px;aspect-ratio:2"></div>`, {
+      font,
+      width: 300
+    });
+    expect(result.nodes[0]).toMatchObject({ kind: "vstack", style: { width: 120, height: 67.5 } });
+    expect(result.nodes[1]).toMatchObject({ kind: "vstack", style: { width: 75, height: 37.5 } });
+  });
+
+  it("selects image candidates from srcset and picture sources", () => {
+    const seen: string[] = [];
+    const image = { width: 400, height: 200 } as PDFImage;
+    const result = htmlToBoxpdf(
+      `<p>
+        <img style="width:120px" src="fallback.png" srcset="small.png 80w, large.png 240w">
+        <picture><source srcset="source-small.png 80w, source-large.png 240w"><img style="width:120px" src="fallback-two.png"></picture>
+      </p>`,
+      {
+        font,
+        width: 320,
+        resolveImage: ({ url }) => {
+          seen.push(url);
+          return image;
+        }
+      }
+    );
+    expect(result.warnings).toEqual([]);
+    expect(seen).toEqual(["large.png", "source-large.png"]);
+  });
+
+  it("aggregates unsupported CSS diagnostics when requested", () => {
+    const result = htmlToBoxpdf(
+      `<style>.a{filter:blur(2px);backdrop-filter:blur(1px)}.b{filter:blur(2px)}</style><div class="a"></div><div class="b"></div>`,
+      { font, width: 320, diagnostics: { unsupportedCss: true, sampleLimit: 1 } }
+    );
+    expect(result.diagnostics?.unsupportedCss).toEqual([
+      { property: "filter", value: "blur(2px)", count: 2, samples: ["filter: blur(2px)"] },
+      { property: "backdrop-filter", value: "blur(1px)", count: 1, samples: ["backdrop-filter: blur(1px)"] }
+    ]);
   });
 
   it("resolves CSS font families through the helper hook", () => {

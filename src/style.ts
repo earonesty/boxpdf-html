@@ -1,5 +1,5 @@
 import type { CssRule, CssStyle, HtmlElementNode, HtmlNode, StyledElement, StyledNode } from "./types.js";
-import { parseStyleAttribute, ruleDeclarationsFor } from "./css.js";
+import { parseStyleAttribute, ruleDeclarationsFor, type UnsupportedCssSink } from "./css.js";
 import type { EdgesInput } from "boxpdf";
 
 const blockTags = new Set([
@@ -8,22 +8,40 @@ const blockTags = new Set([
   "nav", "ol", "p", "pre", "section", "table", "tbody", "td", "tfoot", "th", "thead", "tr", "ul"
 ]);
 
-export function computeStyles(root: HtmlElementNode, rules: CssRule[], base: CssStyle, containingWidth?: number): StyledElement {
-  return styleElement(root, rules, base, containingWidth);
+export function computeStyles(
+  root: HtmlElementNode,
+  rules: CssRule[],
+  base: CssStyle,
+  containingWidth?: number,
+  unsupportedCss?: UnsupportedCssSink
+): StyledElement {
+  return styleElement(root, rules, base, containingWidth, unsupportedCss);
 }
 
-function styleNode(node: HtmlNode, rules: CssRule[], inherited: CssStyle, containingWidth?: number): StyledNode | undefined {
+function styleNode(
+  node: HtmlNode,
+  rules: CssRule[],
+  inherited: CssStyle,
+  containingWidth?: number,
+  unsupportedCss?: UnsupportedCssSink
+): StyledNode | undefined {
   if (node.kind === "text") {
     return { node, style: inherited, text: transformText(normalizeWhitespace(node.value, inherited.whiteSpace), inherited.textTransform) };
   }
-  return styleElement(node, rules, inherited, containingWidth);
+  return styleElement(node, rules, inherited, containingWidth, unsupportedCss);
 }
 
-function styleElement(node: HtmlElementNode, rules: CssRule[], inherited: CssStyle, containingWidth?: number): StyledElement {
+function styleElement(
+  node: HtmlElementNode,
+  rules: CssRule[],
+  inherited: CssStyle,
+  containingWidth?: number,
+  unsupportedCss?: UnsupportedCssSink
+): StyledElement {
   const tagDefaults = defaultsForTag(node.tag, inherited);
-  const ruleDeclarations = ruleDeclarationsFor(node, rules, tagDefaults.fontSize, tagDefaults.customProperties);
+  const ruleDeclarations = ruleDeclarationsFor(node, rules, tagDefaults.fontSize, tagDefaults.customProperties, unsupportedCss);
   const withRules = mergeStyles(tagDefaults, ruleDeclarations.declarations);
-  const inlineDeclarations = parseStyleAttribute(node.attrs.style, withRules.fontSize, withRules.customProperties);
+  const inlineDeclarations = parseStyleAttribute(node.attrs.style, withRules.fontSize, withRules.customProperties, unsupportedCss);
   const style = mergeStyles(
     withRules,
     inlineDeclarations.declarations,
@@ -45,12 +63,13 @@ function styleElement(node: HtmlElementNode, rules: CssRule[], inherited: CssSty
     style.width = containingWidth;
   }
   if (style.width !== undefined) style.width = clamp(style.width, style.minWidth, style.maxWidth);
+  applyAspectRatio(style);
   applyAutoMargins(style, containingWidth);
   if (style.lineHeightScale !== undefined) style.lineHeight = style.fontSize * style.lineHeightScale;
   const inheritedForChildren = inherit(style);
   const childContainingWidth = contentWidthForChildren(style, containingWidth);
   const children = node.children
-    .map((child) => styleNode(child, rules, inheritedForChildren, childContainingWidth))
+    .map((child) => styleNode(child, rules, inheritedForChildren, childContainingWidth, unsupportedCss))
     .filter((child): child is StyledNode => child !== undefined);
   return { node, style, children };
 }
@@ -76,6 +95,7 @@ function defaultsForTag(tag: string, inherited: CssStyle): CssStyle {
     ...inherited,
     display: blockTags.has(tag) ? "block" : "inline",
     float: undefined,
+    order: undefined,
     margin: undefined,
     marginAutoLeft: undefined,
     marginAutoRight: undefined,
@@ -103,6 +123,7 @@ function defaultsForTag(tag: string, inherited: CssStyle): CssStyle {
     maxWidthPercent: undefined,
     maxWidthCalc: undefined,
     height: undefined,
+    aspectRatio: undefined,
     position: undefined,
     top: undefined,
     right: undefined,
@@ -157,6 +178,7 @@ function inherit(style: CssStyle): CssStyle {
     ...style,
     display: "inline",
     float: undefined,
+    order: undefined,
     margin: undefined,
     marginAutoLeft: undefined,
     marginAutoRight: undefined,
@@ -184,6 +206,7 @@ function inherit(style: CssStyle): CssStyle {
     maxWidthPercent: undefined,
     maxWidthCalc: undefined,
     height: undefined,
+    aspectRatio: undefined,
     position: undefined,
     top: undefined,
     right: undefined,
@@ -197,6 +220,12 @@ function inherit(style: CssStyle): CssStyle {
     gridColumnEnd: undefined,
     gridColumnSpan: undefined
   };
+}
+
+function applyAspectRatio(style: CssStyle): void {
+  if (style.aspectRatio === undefined || style.aspectRatio <= 0) return;
+  if (style.width !== undefined && style.height === undefined) style.height = style.width / style.aspectRatio;
+  else if (style.height !== undefined && style.width === undefined) style.width = style.height * style.aspectRatio;
 }
 
 function parseDimensionAttr(value: string | undefined): number | undefined {

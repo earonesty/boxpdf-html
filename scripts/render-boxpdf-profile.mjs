@@ -214,21 +214,31 @@ function byteLength(value) {
 
 async function embedImages(doc, source, baseDir) {
   const images = new Map();
-  for (const match of source.matchAll(/url\(\s*(?:"([^"]+)"|'([^']+)'|([^)]*?))\s*\)/gi)) {
-    const url = (match[1] ?? match[2] ?? match[3])?.trim();
-    if (!url || /^(https?:|data:)/i.test(url)) continue;
-    const imagePath = resolve(baseDir, url);
-    if (!existsSync(imagePath) || images.has(imagePath)) continue;
-    images.set(imagePath, await embedImage(doc, imagePath));
-  }
-  for (const match of source.matchAll(/<img\b[^>]*\bsrc\s*=\s*(?:"([^"]+)"|'([^']+)'|([^\s>]+))/gi)) {
-    const url = (match[1] ?? match[2] ?? match[3])?.trim();
+  for (const url of imageUrls(source)) {
     if (!url || /^(https?:|data:)/i.test(url)) continue;
     const imagePath = resolve(baseDir, url);
     if (!existsSync(imagePath) || images.has(imagePath)) continue;
     images.set(imagePath, await embedImage(doc, imagePath));
   }
   return images;
+}
+
+function imageUrls(source) {
+  const urls = [];
+  for (const match of source.matchAll(/url\(\s*(?:"([^"]+)"|'([^']+)'|([^)]*?))\s*\)/gi)) {
+    urls.push((match[1] ?? match[2] ?? match[3])?.trim());
+  }
+  for (const match of source.matchAll(/<(?:img|source)\b[^>]*\bsrc\s*=\s*(?:"([^"]+)"|'([^']+)'|([^\s>]+))/gi)) {
+    urls.push((match[1] ?? match[2] ?? match[3])?.trim());
+  }
+  for (const match of source.matchAll(/<(?:img|source)\b[^>]*\bsrcset\s*=\s*(?:"([^"]+)"|'([^']+)'|([^>]+))/gi)) {
+    const srcset = (match[1] ?? match[2] ?? match[3])?.trim();
+    for (const candidate of srcset?.split(",") ?? []) {
+      const [url] = candidate.trim().split(/\s+/, 1);
+      if (url) urls.push(url);
+    }
+  }
+  return urls;
 }
 
 function embedImage(doc, imagePath) {
