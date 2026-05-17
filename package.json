@@ -23,6 +23,10 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "compare:prince": "pnpm run build && node scripts/render-prince-reference.mjs",
+    "visual:regenerate": "pnpm run build && node scripts/render-all-comparisons.mjs",
+    "visual:check": "pnpm run visual:check:boxpdf",
+    "visual:check:boxpdf": "pnpm run build && node scripts/check-boxpdf-baselines.mjs",
+    "visual:check:prince": "pnpm run visual:regenerate && git diff --exit-code -- artifacts",
     "prepublishOnly": "pnpm run typecheck && pnpm run test && pnpm run build && node scripts/prepare-publish.mjs --verify",
     "pack:release": "pnpm run typecheck && pnpm run test && pnpm run build && node scripts/prepare-publish.mjs --pack",
     "publish:release": "pnpm run typecheck && pnpm run test && pnpm run build && node scripts/prepare-publish.mjs --publish"
