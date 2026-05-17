@@ -1,4 +1,4 @@
-import type { BorderSides, EdgesInput, Node as BoxNode, Position, RGB } from "boxpdf";
+import type { BorderSides, EdgesInput, Node as BoxNode, Overflow, Position, RGB } from "boxpdf";
 import type { PDFImage, PDFFont } from "pdf-lib";
 
 export interface HtmlToBoxpdfOptions {
@@ -70,6 +70,7 @@ export interface CssStyle {
   backgroundPositionX?: number;
   backgroundPositionY?: number;
   objectFit?: "fill" | "contain" | "cover";
+  overflow?: Overflow;
   fontFamily?: string[];
   fontSize: number;
   fontWeight: FontWeight;

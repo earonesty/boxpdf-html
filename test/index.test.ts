@@ -306,6 +306,19 @@ c</p>`,
     expect(firstRow.children.map((child) => (child.kind === "vstack" || child.kind === "hstack" ? child.style.width : undefined))).toEqual([55, 110, 45]);
   });
 
+  it("maps CSS overflow clipping to stack overflow hidden", () => {
+    const result = htmlToBoxpdf(
+      `<style>.clip{width:80px;height:24px;overflow:hidden}.scroll{width:80px;height:24px;overflow:auto}</style>
+       <div class="clip">Tall clipped content</div><div class="scroll">Scrollable content clips in PDF</div>`,
+      { font, width: 320 }
+    );
+    const clip = result.nodes[0];
+    const scroll = result.nodes[1];
+    if (clip?.kind !== "vstack" || scroll?.kind !== "vstack") throw new Error("expected blocks");
+    expect(clip.style.overflow).toBe("hidden");
+    expect(scroll.style.overflow).toBeUndefined();
+  });
+
   it("resolves calc, rem, and viewport length values", () => {
     const result = htmlToBoxpdf(
       `<style>.outer{width:300px}.calc{width:calc(50% - 10px);padding:calc(1rem + 2px)}.vw{width:10vw}</style>

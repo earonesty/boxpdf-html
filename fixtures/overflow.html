@@ -1,0 +1,63 @@
+<!doctype html>
+<html>
+<head>
+<style>
+  body {
+    font-family: Helvetica, Arial, sans-serif;
+    font-size: 14px;
+    line-height: 1.25;
+    color: #172033;
+    background: #f8fafc;
+  }
+  h1 { font-size: 20px; margin: 0 0 12px 0; }
+  .row { display: flex; flex-direction: row; gap: 14px; margin-bottom: 18px; align-items: flex-start; }
+  .box {
+    width: 150px;
+    height: 62px;
+    padding: 8px;
+    border: 2px solid #334155;
+    background: #ffffff;
+  }
+  .hidden { overflow: hidden; }
+  .visible { overflow: visible; }
+  .clipped-child { overflow: hidden; }
+  .badge {
+    width: 92px;
+    height: 28px;
+    background: #2563eb;
+    color: #ffffff;
+    position: absolute;
+    left: 94px;
+    top: 46px;
+    text-align: center;
+  }
+  .tall {
+    display: block;
+    width: 132px;
+    background: #dcfce7;
+    border: 1px solid #16a34a;
+    padding: 5px;
+  }
+</style>
+</head>
+<body>
+  <h1>Overflow clipping</h1>
+  <div class="row">
+    <div class="box hidden">
+      Hidden clips text after the fixed-height box. This sentence should not paint into the next row.
+    </div>
+    <div class="box visible">
+      Visible lets overflow paint outside the rectangle so the contrast is obvious.
+    </div>
+  </div>
+  <div class="row">
+    <div class="box hidden" style="position:relative">
+      Absolute child clips at the right edge.
+      <div class="badge">BADGE</div>
+    </div>
+    <div class="box clipped-child">
+      <span class="tall">Nested block clips for paged output. Extra lines should disappear cleanly inside this box.</span>
+    </div>
+  </div>
+</body>
+</html>

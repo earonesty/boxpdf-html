@@ -61,6 +61,7 @@ function renderBlock(node: StyledElement, options: HtmlToBoxpdfOptions, warnings
       border: border(node),
       borderSides: node.style.borderSides,
       borderRadius: node.style.borderRadius,
+      overflow: node.style.overflow,
       position: node.style.position,
       top: node.style.top,
       right: node.style.right,
@@ -166,6 +167,7 @@ function renderFlex(node: StyledElement, options: HtmlToBoxpdfOptions, warnings:
     border: border(node),
     borderSides: node.style.borderSides,
     borderRadius: node.style.borderRadius,
+    overflow: node.style.overflow,
     position: node.style.position,
     top: node.style.top,
     right: node.style.right,
@@ -200,6 +202,7 @@ function renderGrid(node: StyledElement, options: HtmlToBoxpdfOptions, warnings:
       border: border(node),
       borderSides: node.style.borderSides,
       borderRadius: node.style.borderRadius,
+      overflow: node.style.overflow,
       position: node.style.position,
       top: node.style.top,
       right: node.style.right,
@@ -407,6 +410,7 @@ function renderTable(node: StyledElement, options: HtmlToBoxpdfOptions, warnings
             border: border(cell),
             borderSides: cell.style.borderSides,
             borderRadius: cell.style.borderRadius,
+            overflow: cell.style.overflow,
             align: cell.style.textAlign,
             valign: cell.style.verticalAlign === "middle" ? "middle" : "top"
           }))

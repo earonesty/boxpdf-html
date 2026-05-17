@@ -128,6 +128,12 @@ function applyDeclaration(out: Partial<CssStyle>, property: string, rawValue: st
     case "object-fit":
       if (value === "fill" || value === "contain" || value === "cover") out.objectFit = value;
       break;
+    case "overflow":
+    case "overflow-x":
+    case "overflow-y":
+      if (value === "hidden" || value === "clip") out.overflow = "hidden";
+      else if (value === "visible") out.overflow = "visible";
+      break;
     case "font-size":
       out.fontSize = parseLength(value, fontSize) ?? out.fontSize;
       break;

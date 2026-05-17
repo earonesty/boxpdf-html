@@ -11,6 +11,7 @@ export const comparisons = [
   ["fixtures/important-cascade.html", "artifacts/important-cascade"],
   ["fixtures/inline-whitespace.html", "artifacts/inline-whitespace"],
   ["fixtures/lists.html", "artifacts/lists"],
+  ["fixtures/overflow.html", "artifacts/overflow"],
   ["fixtures/replaced-images.html", "artifacts/replaced-images"],
   ["fixtures/positioning.html", "artifacts/positioning"],
   ["fixtures/selectors.html", "artifacts/selectors"],
