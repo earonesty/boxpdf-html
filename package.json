@@ -1,11 +1,14 @@
 {
   "name": "boxpdf-html",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Readable HTML-to-PDF translator built on boxpdf.",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "bin": {
+    "boxpdf-html": "dist/cli.js"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -56,12 +59,12 @@
   "dependencies": {
     "boxpdf": "file:..",
     "css-tree": "^3.1.0",
-    "parse5": "^8.0.0"
+    "parse5": "^8.0.0",
+    "pdf-lib": "^1.17.1"
   },
   "devDependencies": {
     "@tailwindcss/cli": "^4.3.0",
     "@types/node": "^22.19.19",
-    "pdf-lib": "^1.17.1",
     "tailwindcss": "^4.3.0",
     "tsup": "^8.5.1",
     "typescript": "^5.9.3",
@@ -69,5 +72,9 @@
   },
   "engines": {
     "node": ">=18"
-  }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "packageManager": "pnpm@10.30.3"
 }

@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: boxpdf/html
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout boxpdf
+        uses: actions/checkout@v4
+        with:
+          repository: earonesty/boxpdf
+          path: boxpdf
+
+      - name: Checkout boxpdf-html
+        uses: actions/checkout@v4
+        with:
+          path: boxpdf/html
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: pnpm
+          cache-dependency-path: boxpdf/html/pnpm-lock.yaml
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm run typecheck
+
+      - name: Test
+        run: pnpm run test
+
+      - name: Build
+        run: pnpm run build
+
+      - name: Pack release tarball
+        run: pnpm run pack:release

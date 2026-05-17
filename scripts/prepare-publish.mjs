@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const stage = join(root, ".pack");
+const npmCache = join(stage, ".npm-cache");
 const args = new Set(process.argv.slice(2));
 
 const rootPkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
@@ -21,6 +22,7 @@ if (!boxpdfVersion || boxpdfVersion.startsWith("file:")) {
 
 const publishPkg = {
   ...rootPkg,
+  scripts: undefined,
   dependencies: {
     ...rootPkg.dependencies,
     boxpdf: boxpdfVersion
@@ -51,7 +53,11 @@ if (args.has("--pack") || args.has("--publish")) {
   const result = spawnSync("npm", commandArgs, {
     cwd: stage,
     stdio: "inherit",
-    shell: false
+    shell: false,
+    env: {
+      ...process.env,
+      npm_config_cache: npmCache
+    }
   });
   process.exit(result.status ?? 1);
 }
