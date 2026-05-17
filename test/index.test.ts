@@ -354,6 +354,25 @@ c</p>`,
     });
   });
 
+  it("uses CSS pixel intrinsic size for auto background images", () => {
+    const image = { width: 200, height: 100 } as PDFImage;
+    const result = htmlToBoxpdf(
+      `<style>.tile{width:100px;height:50px;background-image:url("tile.png");background-size:auto;background-repeat:repeat}</style><div class="tile"></div>`,
+      {
+        font,
+        width: 320,
+        resolveImage: ({ url }) => (url === "tile.png" ? image : undefined)
+      }
+    );
+    const tile = result.nodes[0];
+    if (tile?.kind !== "vstack") throw new Error("expected tile");
+    expect(tile.style.backgroundImage).toMatchObject({
+      width: 150,
+      height: 75,
+      repeat: "repeat"
+    });
+  });
+
   it("applies body styles to fragment children", () => {
     const result = htmlToBoxpdf(`<style>body{font-size:13px;line-height:1.25;color:#666}</style><p>Hello</p>`, {
       font,

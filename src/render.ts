@@ -318,14 +318,16 @@ function backgroundImage(node: StyledElement, options: HtmlToBoxpdfOptions): Bac
   const height = cssBoxHeight(node);
   if (width === undefined || height === undefined || width <= 0 || height <= 0) return undefined;
   const sizing = node.style.backgroundSize ?? "auto";
+  const naturalWidth = image.width * 0.75;
+  const naturalHeight = image.height * 0.75;
   const scale =
     sizing === "cover"
-      ? Math.max(width / image.width, height / image.height)
+      ? Math.max(width / naturalWidth, height / naturalHeight)
       : sizing === "contain"
-        ? Math.min(width / image.width, height / image.height)
+        ? Math.min(width / naturalWidth, height / naturalHeight)
         : 1;
-  const imageWidth = image.width * scale;
-  const imageHeight = image.height * scale;
+  const imageWidth = naturalWidth * scale;
+  const imageHeight = naturalHeight * scale;
   const x = node.style.backgroundPositionX ?? 0;
   const y = node.style.backgroundPositionY ?? 0;
   return {
