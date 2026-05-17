@@ -33,15 +33,37 @@ const { nodes, warnings } = htmlToBoxpdf(html, {
 
 Fonts must be supplied by the caller. `font`, `boldFont`, and `italicFont` are the fallback faces. `resolveFont` is an optional hook for CSS `font-family`, `font-weight`, and `font-style`; `fontFamily()` is the common-case helper that builds this hook from already-embedded fonts.
 
-## Supported MVP Surface
+## Supported Surface
 
 - HTML fragment parsing through `parse5`, including parser-inserted table sections.
 - Stylesheet and inline style parsing through `css-tree`.
-- Simple selectors: tag, class, id, descendant selectors, and direct-child selectors.
-- Common document boxes: block, inline, inline-block, flex row/column, and table.
-- Common text and box styles: color, background color, font family/size/weight/style, line height, text decoration, text align, vertical align, width, height, margin, padding, gap, simple borders, and border radius.
+- Selectors: tag, class, id, attributes, descendant, direct child, adjacent sibling, general sibling, `:root`, `:first-child`, `:last-child`, and simple `:nth-child()`.
+- CSS cascade basics: stylesheet rules, inline styles, `!important`, inherited text styles, custom properties, and `var()` fallbacks.
+- Document boxes: block, inline, inline-block, inline-flex, inline-grid, flex rows/columns including reverse directions, simple grid fallback, tables, floats, and replaced images.
+- Text behavior: rich inline runs, hard breaks, `white-space` modes, `text-transform`, text decoration, text align, vertical align, hanging list indents, no-wrap, and normal wrapping.
+- Sizing and spacing: CSS pixels, `pt`, `em`, `rem`, `vw`, `vh`, percentages for common widths, `calc()`, min/max widths, `box-sizing`, margins including horizontal `auto`, padding, and gaps.
+- Box styling: color, modern `rgb()`/`hsl()` colors, background color, background images with size/repeat/position, simple borders, per-side borders, border collapse, border radius, and overflow clipping.
+- Positioning: relative/absolute boxes, CSS inset aliases, paired-edge stretch, and `z-index`.
+- Images: `<img>`, `object-fit: contain|cover`, unresolved image placeholders when size is known, `srcset`, and simple `picture > source` selection.
+- Fonts: CSS `font-family`, `font-size`, `font-weight`, `font-style`, line height, and `font` shorthand through caller-provided font resolvers.
+- Diagnostics: optional profile callbacks and unsupported CSS aggregation for real-page triage.
 
-The goal for `0.1` is a small, predictable translator pipeline that is easy to extend. It does not try to emulate browser layout exhaustively.
+The translator is still intentionally document-oriented: it aims for readable static output from authored HTML, not browser pixel fidelity for arbitrary interactive pages.
+
+## Diagnostics
+
+```ts
+const result = htmlToBoxpdf(html, {
+  font,
+  width: 468,
+  diagnostics: { unsupportedCss: true, sampleLimit: 3 },
+  profile: (event) => console.log(event.phase, event.elapsedMs)
+});
+
+console.log(result.diagnostics?.unsupportedCss);
+```
+
+Unsupported CSS diagnostics are aggregated by property/value pair. Profile events cover parsing, style computation, render-tree construction, and output node counts.
 
 ## Development
 
@@ -54,7 +76,7 @@ During local development, `package.json` depends on the adjacent checkout:
 Release packing is done through `scripts/prepare-publish.mjs`, which copies the package to a temporary staging directory and rewrites the published manifest to a real semver dependency such as:
 
 ```json
-"boxpdf": "^1.6.1"
+"boxpdf": "^1.7.0"
 ```
 
 The script fails if a packed/published manifest would contain a local `file:` dependency.
@@ -66,8 +88,13 @@ pnpm run typecheck
 pnpm run test
 pnpm run build
 pnpm run compare:prince
+pnpm run visual:regenerate
+pnpm run visual:check
+pnpm run profile:render
 pnpm run pack:release
-BOXPDF_DEP_VERSION=^1.6.1 pnpm run publish:release
+BOXPDF_DEP_VERSION=^1.7.0 pnpm run publish:release
 ```
 
-`compare:prince` renders `fixtures/alpha-mvp.html` through both `boxpdf-html` and Prince, then writes PDFs and PNGs to `artifacts/prince-reference`. It uses `PRINCE_BIN` when set, otherwise it looks for a local Prince install at `.tools/prince/lib/prince/bin/prince`.
+`compare:prince` renders `fixtures/alpha-mvp.html` through both `boxpdf-html` and Prince, then writes PDFs and PNGs to `artifacts/prince-reference`. `visual:regenerate` runs the full fixture set from `scripts/comparisons.mjs`; `visual:check` re-renders BoxPDF outputs and compares PNG baselines. Prince is used as a useful reference renderer, not as the source of truth when its behavior disagrees with CSS or when it lacks a newer feature.
+
+The Prince binary is read from `PRINCE_BIN` when set, otherwise from `.tools/prince/lib/prince/bin/prince`.
