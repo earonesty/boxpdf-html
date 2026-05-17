@@ -36,6 +36,7 @@ function styleElement(node: HtmlElementNode, rules: CssRule[], inherited: CssSty
   if (style.widthCalc !== undefined && containingWidth !== undefined) style.width = containingWidth * style.widthCalc.percent + style.widthCalc.length;
   if (style.minWidthCalc !== undefined && containingWidth !== undefined) style.minWidth = containingWidth * style.minWidthCalc.percent + style.minWidthCalc.length;
   if (style.maxWidthCalc !== undefined && containingWidth !== undefined) style.maxWidth = containingWidth * style.maxWidthCalc.percent + style.maxWidthCalc.length;
+  if (style.display === "grid" && style.width === undefined && containingWidth !== undefined) style.width = containingWidth;
   if (node.tag === "img") {
     style.width ??= parseDimensionAttr(node.attrs.width);
     style.height ??= parseDimensionAttr(node.attrs.height);
