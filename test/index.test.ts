@@ -290,6 +290,28 @@ c</p>`,
     expect(inline.node.kind).toBe("imageBox");
   });
 
+  it("maps styled inline-block elements to atomic inline nodes", () => {
+    const result = htmlToBoxpdf(
+      `<style>.badge{display:inline-block;padding:2px 6px;border:1px solid #2563eb;background:#dbeafe;border-radius:4px;vertical-align:middle}</style>
+       <p>Status <span class="badge">PAID</span> after</p>`,
+      { font, width: 320 }
+    );
+    const block = result.nodes[0];
+    if (block?.kind !== "vstack") throw new Error("expected block");
+    const paragraphNode = block.children[0];
+    if (paragraphNode?.kind !== "paragraph") throw new Error("expected paragraph");
+    const inline = paragraphNode.runs.find((item) => "node" in item);
+    expect(inline).toMatchObject({ verticalAlign: "middle" });
+    if (!inline || !("node" in inline)) throw new Error("expected inline block");
+    expect(inline.node).toMatchObject({
+      kind: "vstack",
+      style: {
+        background: { r: 0.8588235294117647, g: 0.9176470588235294, b: 0.996078431372549 },
+        borderRadius: 3
+      }
+    });
+  });
+
   it("maps simple CSS grids to row hstacks", () => {
     const result = htmlToBoxpdf(
       `<style>.grid{display:grid;grid-template-columns:1fr 2fr 60px;column-gap:10px;row-gap:8px;width:300px}.item{padding:4px}</style>

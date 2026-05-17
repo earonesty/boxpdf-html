@@ -348,11 +348,21 @@ function collectInlineRuns(nodes: StyledNode[], options: HtmlToBoxpdfOptions, wa
       }
       continue;
     }
-    if (node.style.display === "inline" || node.style.display === "inline-block") {
+    if (node.style.display === "inline-block") {
+      const rendered = renderInlineBlockNode(node, options, warnings);
+      const measured = measure(rendered, contentWidth(node) ?? options.width ?? Number.POSITIVE_INFINITY);
+      runs.push(inlineNode(rendered, { width: measured.width, height: measured.height, verticalAlign: node.style.verticalAlign === "middle" ? "middle" : undefined }));
+      continue;
+    }
+    if (node.style.display === "inline") {
       runs.push(...collectInlineRuns(node.children, options, warnings));
     }
   }
   return runs;
+}
+
+function renderInlineBlockNode(node: StyledElement, options: HtmlToBoxpdfOptions, warnings: string[]): BoxNode {
+  return renderBlock(node, options, warnings);
 }
 
 function renderImageNode(node: StyledElement, options: HtmlToBoxpdfOptions, warnings: string[]): BoxNode | undefined {

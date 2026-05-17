@@ -1,0 +1,50 @@
+<!doctype html>
+<html>
+<head>
+<style>
+  @page { size: Letter; margin: 40pt; }
+  body {
+    margin: 0;
+    font-family: Helvetica, Arial, sans-serif;
+    color: #172033;
+    font-size: 14px;
+    line-height: 1.25;
+  }
+  h1 { font-size: 20px; margin: 0 0 12px 0; }
+  p { margin: 0 0 12px 0; width: 360px; }
+  .badge {
+    display: inline-block;
+    padding: 2px 7px;
+    border: 1px solid #2563eb;
+    border-radius: 4px;
+    background: #dbeafe;
+    color: #1e40af;
+    font-size: 11px;
+    font-weight: 700;
+    vertical-align: middle;
+  }
+  .chip {
+    display: inline-block;
+    padding: 4px 8px;
+    border: 1px solid #16a34a;
+    background: #dcfce7;
+    color: #166534;
+    margin: 0 4px;
+  }
+  .tall {
+    display: inline-block;
+    width: 76px;
+    padding: 5px;
+    border: 1px solid #94a3b8;
+    background: #f8fafc;
+    vertical-align: middle;
+  }
+</style>
+</head>
+<body>
+  <h1>Inline block boxes</h1>
+  <p>Status <span class="badge">PAID</span> should stay as a single atomic styled badge inside text.</p>
+  <p>Inline chips <span class="chip">Alpha</span><span class="chip">Beta</span> should preserve their box styling and margins.</p>
+  <p>A taller inline block <span class="tall">wraps its own text</span> should move the whole line without flattening.</p>
+</body>
+</html>

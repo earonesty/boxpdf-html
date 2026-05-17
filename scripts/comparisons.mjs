@@ -9,6 +9,7 @@ export const comparisons = [
   ["fixtures/floats.html", "artifacts/floats"],
   ["fixtures/grid.html", "artifacts/grid"],
   ["fixtures/important-cascade.html", "artifacts/important-cascade"],
+  ["fixtures/inline-block.html", "artifacts/inline-block"],
   ["fixtures/inline-whitespace.html", "artifacts/inline-whitespace"],
   ["fixtures/lists.html", "artifacts/lists"],
   ["fixtures/overflow.html", "artifacts/overflow"],
