@@ -306,6 +306,22 @@ c</p>`,
     expect(firstRow.children.map((child) => (child.kind === "vstack" || child.kind === "hstack" ? child.style.width : undefined))).toEqual([55, 110, 45]);
   });
 
+  it("resolves calc, rem, and viewport length values", () => {
+    const result = htmlToBoxpdf(
+      `<style>.outer{width:300px}.calc{width:calc(50% - 10px);padding:calc(1rem + 2px)}.vw{width:10vw}</style>
+       <div class="outer"><div class="calc">A</div><div class="vw">B</div></div>`,
+      { font, width: 400 }
+    );
+    const outer = result.nodes[0];
+    if (outer?.kind !== "vstack") throw new Error("expected outer");
+    const calc = outer.children[0];
+    const vw = outer.children[1];
+    if (calc?.kind !== "vstack" || vw?.kind !== "vstack") throw new Error("expected boxes");
+    expect(calc.style.width).toBe(132);
+    expect(calc.style.padding).toBe(13.5);
+    expect(vw.style.width).toBe(61.2);
+  });
+
   it("resolves percentage widths against parent content width", () => {
     const result = htmlToBoxpdf(
       `<style>.panel{width:300px;padding:10px}table{width:100%}</style>

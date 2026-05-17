@@ -33,6 +33,9 @@ function styleElement(node: HtmlElementNode, rules: CssRule[], inherited: CssSty
   if (style.widthPercent !== undefined && containingWidth !== undefined) style.width = containingWidth * style.widthPercent;
   if (style.minWidthPercent !== undefined && containingWidth !== undefined) style.minWidth = containingWidth * style.minWidthPercent;
   if (style.maxWidthPercent !== undefined && containingWidth !== undefined) style.maxWidth = containingWidth * style.maxWidthPercent;
+  if (style.widthCalc !== undefined && containingWidth !== undefined) style.width = containingWidth * style.widthCalc.percent + style.widthCalc.length;
+  if (style.minWidthCalc !== undefined && containingWidth !== undefined) style.minWidth = containingWidth * style.minWidthCalc.percent + style.minWidthCalc.length;
+  if (style.maxWidthCalc !== undefined && containingWidth !== undefined) style.maxWidth = containingWidth * style.maxWidthCalc.percent + style.maxWidthCalc.length;
   if (node.tag === "img") {
     style.width ??= parseDimensionAttr(node.attrs.width);
     style.height ??= parseDimensionAttr(node.attrs.height);
@@ -87,10 +90,13 @@ function defaultsForTag(tag: string, inherited: CssStyle): CssStyle {
     boxSizing: "content-box",
     width: undefined,
     widthPercent: undefined,
+    widthCalc: undefined,
     minWidth: undefined,
     minWidthPercent: undefined,
+    minWidthCalc: undefined,
     maxWidth: undefined,
     maxWidthPercent: undefined,
+    maxWidthCalc: undefined,
     height: undefined,
     position: undefined,
     top: undefined,
@@ -159,10 +165,13 @@ function inherit(style: CssStyle): CssStyle {
     boxSizing: "content-box",
     width: undefined,
     widthPercent: undefined,
+    widthCalc: undefined,
     minWidth: undefined,
     minWidthPercent: undefined,
+    minWidthCalc: undefined,
     maxWidth: undefined,
     maxWidthPercent: undefined,
+    maxWidthCalc: undefined,
     height: undefined,
     position: undefined,
     top: undefined,

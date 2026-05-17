@@ -54,6 +54,7 @@ export interface ParsedHtml {
 
 export type Display = "block" | "inline" | "inline-block" | "flex" | "grid" | "none";
 export type GridTrack = { kind: "length"; value: number } | { kind: "percent"; value: number } | { kind: "fr"; value: number };
+export type CssLengthPercentage = { length: number; percent: number };
 
 export interface CssStyle {
   display: Display;
@@ -81,10 +82,13 @@ export interface CssStyle {
   boxSizing: "content-box" | "border-box";
   width?: number;
   widthPercent?: number;
+  widthCalc?: CssLengthPercentage;
   minWidth?: number;
   minWidthPercent?: number;
+  minWidthCalc?: CssLengthPercentage;
   maxWidth?: number;
   maxWidthPercent?: number;
+  maxWidthCalc?: CssLengthPercentage;
   height?: number;
   margin?: EdgesInput;
   padding?: EdgesInput;

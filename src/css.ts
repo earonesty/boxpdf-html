@@ -1,6 +1,6 @@
 import { generate, parse as parseCss, walk } from "css-tree";
 import { parseColor } from "./color.js";
-import { parseLength, parseLineHeight, parsePercentage } from "./units.js";
+import { parseLength, parseLengthPercentage, parseLineHeight, parsePercentage } from "./units.js";
 import type { CssRule, CssStyle, Display, GridTrack, HtmlElementNode } from "./types.js";
 import type { Border, EdgesInput } from "boxpdf";
 
@@ -188,20 +188,18 @@ function applyDeclaration(out: Partial<CssStyle>, property: string, rawValue: st
       else if (value.includes("disc")) out.listStyleType = "disc";
       break;
     case "width":
-      out.widthPercent = parsePercentage(value);
-      out.width = out.widthPercent === undefined ? parseLength(value, fontSize) : undefined;
+      setLengthPercentage(out, "width", value, fontSize);
       break;
     case "min-width":
-      out.minWidthPercent = parsePercentage(value);
-      out.minWidth = out.minWidthPercent === undefined ? parseLength(value, fontSize) : undefined;
+      setLengthPercentage(out, "minWidth", value, fontSize);
       break;
     case "max-width":
       if (value === "none") {
         out.maxWidth = undefined;
         out.maxWidthPercent = undefined;
+        out.maxWidthCalc = undefined;
       } else {
-        out.maxWidthPercent = parsePercentage(value);
-        out.maxWidth = out.maxWidthPercent === undefined ? parseLength(value, fontSize) : undefined;
+        setLengthPercentage(out, "maxWidth", value, fontSize);
       }
       break;
     case "height":
@@ -275,6 +273,19 @@ function applyDeclaration(out: Partial<CssStyle>, property: string, rawValue: st
   }
 }
 
+function setLengthPercentage(out: Partial<CssStyle>, property: "width" | "minWidth" | "maxWidth", value: string, fontSize: number): void {
+  const parsed = parseLengthPercentage(value, fontSize);
+  const percentKey = `${property}Percent` as "widthPercent" | "minWidthPercent" | "maxWidthPercent";
+  const calcKey = `${property}Calc` as "widthCalc" | "minWidthCalc" | "maxWidthCalc";
+  out[property] = undefined;
+  out[percentKey] = undefined;
+  out[calcKey] = undefined;
+  if (!parsed) return;
+  if (parsed.percent !== 0 && parsed.length !== 0) out[calcKey] = parsed;
+  else if (parsed.percent !== 0) out[percentKey] = parsed.percent;
+  else out[property] = parsed.length;
+}
+
 function parseGridTemplateColumns(value: string, fontSize: number): GridTrack[] | undefined {
   const expanded = expandGridRepeats(value);
   const tracks = gridTrackTokens(expanded).map((token): GridTrack | undefined => {
@@ -304,6 +315,10 @@ function expandGridRepeats(value: string): string {
 }
 
 function gridTrackTokens(value: string): string[] {
+  return cssValueTokens(value).map((token) => token.toLowerCase());
+}
+
+function cssValueTokens(value: string): string[] {
   const tokens: string[] = [];
   let token = "";
   let depth = 0;
@@ -317,7 +332,7 @@ function gridTrackTokens(value: string): string[] {
     }
     token += char;
   }
-  if (token) tokens.push(token.toLowerCase());
+  if (token) tokens.push(token);
   return tokens;
 }
 
@@ -392,9 +407,7 @@ function parseFontWeight(value: string): CssStyle["fontWeight"] {
 }
 
 function parseEdges(value: string, fontSize: number): EdgesInput | undefined {
-  const lengths = value
-    .split(/\s+/)
-    .map((part) => parseLength(part, fontSize));
+  const lengths = cssValueTokens(value).map((part) => parseLength(part, fontSize));
   if (lengths.some((length) => length === undefined)) return undefined;
   const [top, right = top, bottom = top, left = right] = lengths as number[];
   if (top === right && right === bottom && bottom === left) return top;

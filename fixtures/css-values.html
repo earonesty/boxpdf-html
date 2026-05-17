@@ -1,0 +1,29 @@
+<style>
+  @page { size: Letter; margin: 40pt; }
+  body { margin: 0; font-family: Helvetica, Arial, sans-serif; color: #111; font-size: 13px; }
+  .panel {
+    width: 460px;
+    padding: 14px 16px;
+    border: 1px solid #94a3b8;
+    background: #f8fafc;
+  }
+  h2 { margin: 0 0 1rem 0; }
+  .half {
+    width: calc(50% - 12px);
+    padding: calc(0.5rem + 2px);
+    border: 1px solid #2563eb;
+    background: #dbeafe;
+    margin-bottom: 10px;
+  }
+  .viewport {
+    width: 18vw;
+    padding: 1rem;
+    border: 1px solid #16a34a;
+    background: #dcfce7;
+  }
+</style>
+<div class="panel">
+  <h2>CSS Values</h2>
+  <div class="half">calc(50% - 12px) should resolve against the containing block and include rem math in padding.</div>
+  <div class="viewport">vw and rem units should resolve to stable print lengths.</div>
+</div>

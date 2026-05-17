@@ -4,6 +4,7 @@ export const comparisons = [
   ["fixtures/border-collapse.html", "artifacts/border-collapse"],
   ["fixtures/border-sides.html", "artifacts/border-sides"],
   ["fixtures/box-sizing.html", "artifacts/box-sizing"],
+  ["fixtures/css-values.html", "artifacts/css-values"],
   ["fixtures/css-basics.html", "artifacts/css-basics"],
   ["fixtures/floats.html", "artifacts/floats"],
   ["fixtures/grid.html", "artifacts/grid"],
