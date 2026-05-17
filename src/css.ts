@@ -136,6 +136,9 @@ function applyDeclaration(out: Partial<CssStyle>, property: string, rawValue: st
     case "font-size":
       out.fontSize = parseLength(value, fontSize) ?? out.fontSize;
       break;
+    case "font":
+      parseFontShorthand(out, rawValue, fontSize);
+      break;
     case "font-family":
       out.fontFamily = parseFontFamily(rawValue);
       break;
@@ -324,6 +327,10 @@ function gridTrackTokens(value: string): string[] {
 }
 
 function cssValueTokens(value: string): string[] {
+  return cssValueTokensPreservingCase(value).map((token) => token.toLowerCase());
+}
+
+function cssValueTokensPreservingCase(value: string): string[] {
   const tokens: string[] = [];
   let token = "";
   let depth = 0;
@@ -331,7 +338,7 @@ function cssValueTokens(value: string): string[] {
     if (char === "(") depth += 1;
     if (char === ")") depth = Math.max(0, depth - 1);
     if (/\s/.test(char) && depth === 0) {
-      if (token) tokens.push(token.toLowerCase());
+      if (token) tokens.push(token);
       token = "";
       continue;
     }
@@ -401,6 +408,38 @@ function parseFontFamily(value: string): string[] {
     .split(",")
     .map((family) => family.trim().replace(/^['"]|['"]$/g, ""))
     .filter(Boolean);
+}
+
+function parseFontShorthand(out: Partial<CssStyle>, value: string, inheritedFontSize: number): void {
+  const tokens = cssValueTokensPreservingCase(value);
+  const sizeIndex = tokens.findIndex((token) => {
+    const [size] = token.split("/");
+    return isFontSizeToken(size) && parseLength(size, inheritedFontSize) !== undefined;
+  });
+  if (sizeIndex < 0) return;
+
+  for (const token of tokens.slice(0, sizeIndex)) {
+    const normalized = token.toLowerCase();
+    if (normalized === "italic" || normalized === "oblique") out.fontStyle = "italic";
+    else if (normalized === "normal") {
+      out.fontStyle ??= "normal";
+      out.fontWeight ??= "normal";
+    } else if (normalized === "bold" || normalized === "bolder" || normalized === "lighter" || /^[1-9]00$/.test(normalized)) {
+      out.fontWeight = parseFontWeight(normalized);
+    }
+  }
+
+  const [sizePart, lineHeightPart] = tokens[sizeIndex]!.split("/");
+  const parsedSize = parseLength(sizePart, inheritedFontSize);
+  if (parsedSize !== undefined) out.fontSize = parsedSize;
+  if (lineHeightPart) out.lineHeight = parseLineHeight(lineHeightPart, parsedSize ?? inheritedFontSize);
+
+  const family = tokens.slice(sizeIndex + 1).join(" ");
+  if (family.trim()) out.fontFamily = parseFontFamily(family);
+}
+
+function isFontSizeToken(value: string | undefined): boolean {
+  return value !== undefined && /^-?(?:\d+|\d*\.\d+)(px|pt|em|rem|vw|vh)$/i.test(value.trim());
 }
 
 function parseFontWeight(value: string): CssStyle["fontWeight"] {

@@ -4,11 +4,13 @@ import { fontFamily, htmlToBoxpdf, parseHtml } from "../src/index.js";
 
 let font: PDFFont;
 let bold: PDFFont;
+let boldItalic: PDFFont;
 
 beforeAll(async () => {
   const pdf = await PDFDocument.create();
   font = await pdf.embedFont(StandardFonts.Helvetica);
   bold = await pdf.embedFont(StandardFonts.HelveticaBold);
+  boldItalic = await pdf.embedFont(StandardFonts.HelveticaBoldOblique);
 });
 
 describe("parseHtml", () => {
@@ -428,7 +430,7 @@ c</p>`,
     const result = htmlToBoxpdf(`<p style="font-family: Missing, Inter; font-weight: 700">Hello</p>`, {
       font,
       resolveFont: fontFamily({
-        Inter: { normal: font, bold }
+        Inter: { normal: font, bold, boldItalic }
       })
     });
     expect(result.nodes[0]).toMatchObject({
@@ -440,6 +442,26 @@ c</p>`,
         }
       ]
     });
+  });
+
+  it("parses CSS font shorthand", () => {
+    const result = htmlToBoxpdf(`<p style="font: italic 700 16px/1.5 Inter, sans-serif">Hello</p>`, {
+      font,
+      boldFont: bold,
+      italicFont: font,
+      resolveFont: fontFamily({
+        Inter: { normal: font, bold, boldItalic }
+      })
+    });
+    const block = result.nodes[0];
+    if (block?.kind !== "vstack") throw new Error("expected block");
+    const paragraphNode = block.children[0];
+    if (paragraphNode?.kind !== "paragraph") throw new Error("expected paragraph");
+    const firstRun = paragraphNode.runs[0];
+    if (!firstRun || !("text" in firstRun)) throw new Error("expected text run");
+    expect(firstRun.style.size).toBe(12);
+    expect(firstRun.style.lineHeight).toBe(18);
+    expect(firstRun.style.font.name).toBe("Helvetica-BoldOblique");
   });
 
   it("maps visible text and box styling", () => {

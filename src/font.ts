@@ -1,7 +1,7 @@
 import type { PDFFont } from "pdf-lib";
 import type { FontStyle, FontWeight, HtmlFontResolver, HtmlFontRequest } from "./types.js";
 
-export type FontFamilyFace = PDFFont | Partial<Record<FontStyle | "bold" | `${number}`, PDFFont>>;
+export type FontFamilyFace = PDFFont | Partial<Record<FontStyle | "bold" | "boldItalic" | `${number}`, PDFFont>>;
 export type FontFamilyMap = Record<string, FontFamilyFace>;
 
 export function fontFamily(families: FontFamilyMap): HtmlFontResolver {
@@ -33,7 +33,7 @@ function resolveFace(face: FontFamilyFace, request: HtmlFontRequest): PDFFont | 
 function preferredKeys(weight: FontWeight, style: FontStyle): Array<keyof Exclude<FontFamilyFace, PDFFont>> {
   const keys: Array<keyof Exclude<FontFamilyFace, PDFFont>> = [];
   if (typeof weight === "number") keys.push(`${weight}`);
-  if (isBold(weight) && style === "italic") keys.push("bold");
+  if (isBold(weight) && style === "italic") keys.push("boldItalic");
   if (style === "italic") keys.push("italic");
   if (isBold(weight)) keys.push("bold");
   keys.push("normal");

@@ -49,15 +49,16 @@ async function renderBoxpdf(input, output) {
   const font = await doc.embedFont(StandardFonts.Helvetica);
   const boldFont = await doc.embedFont(StandardFonts.HelveticaBold);
   const italicFont = await doc.embedFont(StandardFonts.HelveticaOblique);
+  const boldItalicFont = await doc.embedFont(StandardFonts.HelveticaBoldOblique);
   const images = await embedImages(doc, source, dirname(input));
   const result = htmlToBoxpdf(source, {
     font,
     boldFont,
     italicFont,
     resolveFont: fontFamily({
-      Helvetica: { normal: font, bold: boldFont, italic: italicFont },
-      Arial: { normal: font, bold: boldFont, italic: italicFont },
-      "sans-serif": { normal: font, bold: boldFont, italic: italicFont }
+      Helvetica: { normal: font, bold: boldFont, italic: italicFont, boldItalic: boldItalicFont },
+      Arial: { normal: font, bold: boldFont, italic: italicFont, boldItalic: boldItalicFont },
+      "sans-serif": { normal: font, bold: boldFont, italic: italicFont, boldItalic: boldItalicFont }
     }),
     resolveImage: ({ url }) => images.get(resolve(dirname(input), url)),
     baseUrl: dirname(input),
