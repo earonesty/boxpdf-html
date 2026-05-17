@@ -31,6 +31,7 @@ function renderNode(node: StyledNode, options: HtmlToBoxpdfOptions, warnings: st
     return trimmed ? [text(trimmed, textOptions(node, options))] : [];
   }
   if (node.style.display === "none") return [];
+  if (node.style.display === "contents") return node.children.flatMap((child) => renderNode(child, options, warnings));
   if (node.node.tag === "img") {
     const rendered = renderImageNode(node, options, warnings);
     return rendered ? [rendered] : [];
@@ -81,13 +82,13 @@ function renderBlockChildren(node: StyledElement, options: HtmlToBoxpdfOptions, 
   const flushInline = (): void => {
     const runs = collectInlineRuns(inlineBuffer, options, warnings);
     if (runs.length > 0 || floats.length > 0) {
-      out.push(paragraph({ width: contentWidth(node), align: node.style.textAlign, wrap: shouldWrap(node.style), floats }, ...runs));
+      out.push(paragraph({ width: contentWidth(node), align: node.style.textAlign, wrap: shouldWrap(node.style), floats, textIndent: node.style.textIndent }, ...runs));
       floats = [];
     }
     inlineBuffer = [];
   };
 
-  for (const child of node.children) {
+  for (const child of flattenDisplayContents(node.children)) {
     if (!("text" in child) && child.style.float && child.style.float !== "none") {
       floats.push({ node: renderFloatNode(child, options, warnings), side: child.style.float });
       continue;
@@ -118,6 +119,13 @@ function hasInlineContent(node: StyledNode): boolean {
   if ("text" in node) return node.text.trim().length > 0;
   if (node.node.tag === "br") return true;
   return node.children.some(hasInlineContent);
+}
+
+function flattenDisplayContents(nodes: StyledNode[]): StyledNode[] {
+  return nodes.flatMap((node) => {
+    if ("text" in node || node.style.display !== "contents") return [node];
+    return flattenDisplayContents(node.children);
+  });
 }
 
 function renderFloatNode(node: StyledElement, options: HtmlToBoxpdfOptions, warnings: string[]): BoxNode {
@@ -374,7 +382,7 @@ function collectInlineRuns(nodes: StyledNode[], options: HtmlToBoxpdfOptions, wa
       runs.push(inlineNode(rendered, { width: measured.width, height: measured.height, verticalAlign: node.style.verticalAlign === "middle" ? "middle" : undefined }));
       continue;
     }
-    if (node.style.display === "inline") {
+    if (node.style.display === "inline" || node.style.display === "contents") {
       runs.push(...collectInlineRuns(node.children, options, warnings));
     }
   }

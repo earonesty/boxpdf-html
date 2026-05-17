@@ -383,6 +383,85 @@ c</p>`,
     expect(colors[1]).toMatchObject({ r: 0.8627450980392157, g: 0.14901960784313725, b: 0.14901960784313725 });
   });
 
+  it("maps modern CSS colors", () => {
+    const result = htmlToBoxpdf(
+      `<style>
+        .rgb { color: rgb(37 99 235 / 80%); background: hsl(210 100% 96%); }
+        .rgba { color: rgba(220, 38, 38, 0.7); border: 1px solid hsl(142 72% 29%); }
+      </style>
+      <div class="rgb">Blue</div><div class="rgba">Red</div>`,
+      { font, width: 320 }
+    );
+    const rgb = result.nodes[0];
+    const rgba = result.nodes[1];
+    if (rgb?.kind !== "vstack" || rgba?.kind !== "vstack") throw new Error("expected boxes");
+    expect(rgb.style.background?.r).toBeCloseTo(0.92);
+    expect(rgb.style.background?.g).toBeCloseTo(0.96);
+    expect(rgb.style.background?.b).toBeCloseTo(1);
+    const rgbText = rgb.children[0];
+    if (rgbText?.kind !== "paragraph") throw new Error("expected paragraph");
+    const rgbRun = rgbText.runs[0];
+    if (!rgbRun || !("text" in rgbRun)) throw new Error("expected text run");
+    expect(rgbRun.style.color).toMatchObject({ r: 0.1450980392156863, g: 0.38823529411764707, b: 0.9215686274509803 });
+    const rgbaText = rgba.children[0];
+    if (rgbaText?.kind !== "paragraph") throw new Error("expected paragraph");
+    const rgbaRun = rgbaText.runs[0];
+    if (!rgbaRun || !("text" in rgbaRun)) throw new Error("expected text run");
+    expect(rgbaRun.style.color).toMatchObject({ r: 0.8627450980392157, g: 0.14901960784313725, b: 0.14901960784313725 });
+    expect(rgba.style.border?.color?.r).toBeCloseTo(0.0812);
+    expect(rgba.style.border?.color?.g).toBeCloseTo(0.4988);
+    expect(rgba.style.border?.color?.b).toBeCloseTo(0.2343);
+  });
+
+  it("maps logical spacing, borders, insets, and text indent", () => {
+    const result = htmlToBoxpdf(
+      `<style>
+        .box {
+          position: relative;
+          padding-inline: 12px 20px;
+          padding-block: 4px 8px;
+          margin-block-start: 10px;
+          border-inline-start: 2px solid #2563eb;
+          text-indent: 16px;
+        }
+        .abs { position: absolute; inset-inline-end: 6px; inset-block-start: 4px; }
+      </style>
+      <div class="box">Indented text<div class="abs">A</div></div>`,
+      { font, width: 320 }
+    );
+    const box = result.nodes[0];
+    if (box?.kind !== "vstack") throw new Error("expected box");
+    expect(box.style.margin).toMatchObject({ top: 7.5 });
+    expect(box.style.padding).toMatchObject({ top: 3, right: 15, bottom: 6, left: 10.5 });
+    expect(box.style.borderSides?.left?.width).toBe(1.5);
+    const paragraphNode = box.children.find((child) => child.kind === "paragraph");
+    if (paragraphNode?.kind !== "paragraph") throw new Error("expected paragraph");
+    expect(paragraphNode.props.textIndent).toBe(12);
+    const abs = box.children.find((child) => child.kind === "vstack");
+    if (abs?.kind !== "vstack") throw new Error("expected absolute child");
+    expect(abs.style).toMatchObject({ position: "absolute", right: 4.5, top: 3 });
+  });
+
+  it("renders display contents without an intermediate box and maps flow-root to block", () => {
+    const result = htmlToBoxpdf(
+      `<style>.contents{display:contents;color:#2563eb}.flow{display:flow-root;padding:4px}</style>
+       <div><span>Before </span><span class="contents"><strong>inside</strong></span><span> after</span></div>
+       <section class="flow">Flow root</section>`,
+      { font, boldFont: bold, width: 320 }
+    );
+    const paragraphBox = result.nodes[0];
+    const flow = result.nodes[1];
+    if (paragraphBox?.kind !== "vstack" || flow?.kind !== "vstack") throw new Error("expected boxes");
+    expect(paragraphBox.children).toHaveLength(1);
+    const paragraphNode = paragraphBox.children[0];
+    if (paragraphNode?.kind !== "paragraph") throw new Error("expected paragraph");
+    expect(paragraphNode.runs.map((item) => ("text" in item ? item.text : ""))).toEqual(["Before ", "inside", " after"]);
+    const contentsRun = paragraphNode.runs[1];
+    if (!contentsRun || !("text" in contentsRun)) throw new Error("expected text run");
+    expect(contentsRun.style.color).toMatchObject({ r: 0.1450980392156863, g: 0.38823529411764707, b: 0.9215686274509803 });
+    expect(flow.style.padding).toBe(3);
+  });
+
   it("resolves calc, rem, and viewport length values", () => {
     const result = htmlToBoxpdf(
       `<style>.outer{width:300px}.calc{width:calc(50% - 10px);padding:calc(1rem + 2px)}.vw{width:10vw}</style>

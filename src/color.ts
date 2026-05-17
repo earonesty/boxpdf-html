@@ -14,27 +14,106 @@ export function parseColor(value: string | undefined): RGB | undefined {
   const normalized = value.trim().toLowerCase();
   const resolved = namedColors[normalized] ?? normalized;
   if (resolved === "transparent") return undefined;
-  const hex = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(resolved);
+  const hex = /^#([0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i.exec(resolved);
   if (hex) {
     const body = hex[1]!;
-    const full = body.length === 3 ? body.split("").map((c) => c + c).join("") : body;
+    const rgb = body.length === 4 ? body.slice(0, 3) : body.length === 8 ? body.slice(0, 6) : body;
+    const full = rgb.length === 3 ? rgb.split("").map((c) => c + c).join("") : rgb;
     return {
       r: Number.parseInt(full.slice(0, 2), 16) / 255,
       g: Number.parseInt(full.slice(2, 4), 16) / 255,
       b: Number.parseInt(full.slice(4, 6), 16) / 255
     };
   }
-  const rgb = /^rgb\(\s*([0-9.]+)\s*,\s*([0-9.]+)\s*,\s*([0-9.]+)\s*\)$/.exec(resolved);
-  if (rgb) {
-    return {
-      r: clamp255(Number(rgb[1])),
-      g: clamp255(Number(rgb[2])),
-      b: clamp255(Number(rgb[3]))
-    };
-  }
+  const rgb = parseRgbFunction(resolved);
+  if (rgb) return rgb;
+  const hsl = parseHslFunction(resolved);
+  if (hsl) return hsl;
   return undefined;
 }
 
+function parseRgbFunction(value: string): RGB | undefined {
+  const match = /^rgba?\(\s*(.+)\s*\)$/.exec(value);
+  if (!match) return undefined;
+  const body = match[1]!.split("/")[0]!.trim();
+  const parts = body.includes(",") ? body.split(",") : body.split(/\s+/);
+  if (parts.length < 3) return undefined;
+  const channels = parts.slice(0, 3).map((part) => parseRgbChannel(part.trim()));
+  if (channels.some((channel) => channel === undefined)) return undefined;
+  return {
+    r: channels[0]!,
+    g: channels[1]!,
+    b: channels[2]!
+  };
+}
+
+function parseRgbChannel(value: string): number | undefined {
+  const percent = /^(-?[0-9.]+)%$/.exec(value);
+  if (percent) {
+    const amount = Number(percent[1]);
+    return Number.isFinite(amount) ? clamp01(amount / 100) : undefined;
+  }
+  const amount = Number(value);
+  return Number.isFinite(amount) ? clamp255(amount) : undefined;
+}
+
+function parseHslFunction(value: string): RGB | undefined {
+  const match = /^hsla?\(\s*(.+)\s*\)$/.exec(value);
+  if (!match) return undefined;
+  const body = match[1]!.split("/")[0]!.trim();
+  const parts = body.includes(",") ? body.split(",") : body.split(/\s+/);
+  if (parts.length < 3) return undefined;
+  const hue = parseHue(parts[0]!.trim());
+  const saturation = parsePercentChannel(parts[1]!.trim());
+  const lightness = parsePercentChannel(parts[2]!.trim());
+  if (hue === undefined || saturation === undefined || lightness === undefined) return undefined;
+  return hslToRgb(hue, saturation, lightness);
+}
+
+function parseHue(value: string): number | undefined {
+  const match = /^(-?[0-9.]+)(deg|turn|rad)?$/.exec(value);
+  if (!match) return undefined;
+  const amount = Number(match[1]);
+  if (!Number.isFinite(amount)) return undefined;
+  const unit = match[2] ?? "deg";
+  if (unit === "turn") return amount * 360;
+  if (unit === "rad") return amount * (180 / Math.PI);
+  return amount;
+}
+
+function parsePercentChannel(value: string): number | undefined {
+  const match = /^(-?[0-9.]+)%$/.exec(value);
+  if (!match) return undefined;
+  const amount = Number(match[1]);
+  return Number.isFinite(amount) ? clamp01(amount / 100) : undefined;
+}
+
+function hslToRgb(hue: number, saturation: number, lightness: number): RGB {
+  const normalizedHue = ((((hue % 360) + 360) % 360) / 360);
+  if (saturation === 0) return { r: lightness, g: lightness, b: lightness };
+  const q = lightness < 0.5 ? lightness * (1 + saturation) : lightness + saturation - lightness * saturation;
+  const p = 2 * lightness - q;
+  return {
+    r: hueToRgb(p, q, normalizedHue + 1 / 3),
+    g: hueToRgb(p, q, normalizedHue),
+    b: hueToRgb(p, q, normalizedHue - 1 / 3)
+  };
+}
+
+function hueToRgb(p: number, q: number, t: number): number {
+  let value = t;
+  if (value < 0) value += 1;
+  if (value > 1) value -= 1;
+  if (value < 1 / 6) return p + (q - p) * 6 * value;
+  if (value < 1 / 2) return q;
+  if (value < 2 / 3) return p + (q - p) * (2 / 3 - value) * 6;
+  return p;
+}
+
+function clamp01(value: number): number {
+  return Math.max(0, Math.min(1, value));
+}
+
 function clamp255(value: number): number {
-  return Math.max(0, Math.min(255, value)) / 255;
+  return clamp01(value / 255);
 }

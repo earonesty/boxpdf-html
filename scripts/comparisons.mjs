@@ -6,6 +6,7 @@ export const comparisons = [
   ["fixtures/box-sizing.html", "artifacts/box-sizing"],
   ["fixtures/css-values.html", "artifacts/css-values"],
   ["fixtures/css-variables.html", "artifacts/css-variables"],
+  ["fixtures/css-parity-unlocks.html", "artifacts/css-parity-unlocks"],
   ["fixtures/css-basics.html", "artifacts/css-basics"],
   ["fixtures/floats.html", "artifacts/floats"],
   ["fixtures/font-shorthand.html", "artifacts/font-shorthand"],

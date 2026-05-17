@@ -193,7 +193,10 @@ function applyDeclaration(out: Partial<CssStyle>, property: string, rawValue: st
   const value = rawValue.trim().toLowerCase();
   switch (property.trim().toLowerCase()) {
     case "display":
-      if (["block", "inline", "inline-block", "flex", "inline-flex", "grid", "inline-grid", "none"].includes(value)) out.display = value as Display;
+      if (value === "flow-root" || value === "list-item") out.display = "block";
+      else if (["block", "inline", "inline-block", "flex", "inline-flex", "grid", "inline-grid", "contents", "none"].includes(value)) {
+        out.display = value as Display;
+      }
       break;
     case "float":
       if (value === "none" || value === "left" || value === "right") out.float = value;
@@ -282,6 +285,9 @@ function applyDeclaration(out: Partial<CssStyle>, property: string, rawValue: st
         out.textTransform = value;
       }
       break;
+    case "text-indent":
+      out.textIndent = parseLength(value, fontSize);
+      break;
     case "vertical-align":
       if (value === "middle" || value === "baseline") out.verticalAlign = value;
       break;
@@ -296,6 +302,27 @@ function applyDeclaration(out: Partial<CssStyle>, property: string, rawValue: st
     case "bottom":
     case "left":
       out[property as "top" | "right" | "bottom" | "left"] = parseLength(value, fontSize);
+      break;
+    case "inset":
+      applyInset(out, value, fontSize);
+      break;
+    case "inset-block":
+      applyTwoValueInset(out, "top", "bottom", value, fontSize);
+      break;
+    case "inset-inline":
+      applyTwoValueInset(out, "left", "right", value, fontSize);
+      break;
+    case "inset-block-start":
+      out.top = parseLength(value, fontSize);
+      break;
+    case "inset-block-end":
+      out.bottom = parseLength(value, fontSize);
+      break;
+    case "inset-inline-start":
+      out.left = parseLength(value, fontSize);
+      break;
+    case "inset-inline-end":
+      out.right = parseLength(value, fontSize);
       break;
     case "z-index": {
       const zIndex = Number.parseInt(value, 10);
@@ -329,6 +356,24 @@ function applyDeclaration(out: Partial<CssStyle>, property: string, rawValue: st
     case "margin":
       out.margin = parseEdges(value, fontSize);
       break;
+    case "margin-block":
+      applyTwoValueEdges(out, "margin", "top", "bottom", value, fontSize);
+      break;
+    case "margin-inline":
+      applyTwoValueEdges(out, "margin", "left", "right", value, fontSize);
+      break;
+    case "margin-block-start":
+      out.margin = setEdge(out.margin, "top", parseLength(value, fontSize));
+      break;
+    case "margin-block-end":
+      out.margin = setEdge(out.margin, "bottom", parseLength(value, fontSize));
+      break;
+    case "margin-inline-start":
+      out.margin = setEdge(out.margin, "left", parseLength(value, fontSize));
+      break;
+    case "margin-inline-end":
+      out.margin = setEdge(out.margin, "right", parseLength(value, fontSize));
+      break;
     case "margin-top":
     case "margin-right":
     case "margin-bottom":
@@ -337,6 +382,24 @@ function applyDeclaration(out: Partial<CssStyle>, property: string, rawValue: st
       break;
     case "padding":
       out.padding = parseEdges(value, fontSize);
+      break;
+    case "padding-block":
+      applyTwoValueEdges(out, "padding", "top", "bottom", value, fontSize);
+      break;
+    case "padding-inline":
+      applyTwoValueEdges(out, "padding", "left", "right", value, fontSize);
+      break;
+    case "padding-block-start":
+      out.padding = setEdge(out.padding, "top", parseLength(value, fontSize));
+      break;
+    case "padding-block-end":
+      out.padding = setEdge(out.padding, "bottom", parseLength(value, fontSize));
+      break;
+    case "padding-inline-start":
+      out.padding = setEdge(out.padding, "left", parseLength(value, fontSize));
+      break;
+    case "padding-inline-end":
+      out.padding = setEdge(out.padding, "right", parseLength(value, fontSize));
       break;
     case "padding-top":
     case "padding-right":
@@ -367,6 +430,26 @@ function applyDeclaration(out: Partial<CssStyle>, property: string, rawValue: st
     case "border-left":
       setBorderSide(out, property.slice("border-".length), parseBorderValue(value, fontSize));
       break;
+    case "border-block":
+      setBorderSide(out, "top", parseBorderValue(value, fontSize));
+      setBorderSide(out, "bottom", parseBorderValue(value, fontSize));
+      break;
+    case "border-inline":
+      setBorderSide(out, "left", parseBorderValue(value, fontSize));
+      setBorderSide(out, "right", parseBorderValue(value, fontSize));
+      break;
+    case "border-block-start":
+      setBorderSide(out, "top", parseBorderValue(value, fontSize));
+      break;
+    case "border-block-end":
+      setBorderSide(out, "bottom", parseBorderValue(value, fontSize));
+      break;
+    case "border-inline-start":
+      setBorderSide(out, "left", parseBorderValue(value, fontSize));
+      break;
+    case "border-inline-end":
+      setBorderSide(out, "right", parseBorderValue(value, fontSize));
+      break;
     case "border-width":
       out.borderWidth = parseLength(value, fontSize);
       break;
@@ -376,6 +459,18 @@ function applyDeclaration(out: Partial<CssStyle>, property: string, rawValue: st
     case "border-left-width":
       setBorderSide(out, borderSideFromProperty(property, "-width"), { width: parseLength(value, fontSize) });
       break;
+    case "border-block-start-width":
+      setBorderSide(out, "top", { width: parseLength(value, fontSize) });
+      break;
+    case "border-block-end-width":
+      setBorderSide(out, "bottom", { width: parseLength(value, fontSize) });
+      break;
+    case "border-inline-start-width":
+      setBorderSide(out, "left", { width: parseLength(value, fontSize) });
+      break;
+    case "border-inline-end-width":
+      setBorderSide(out, "right", { width: parseLength(value, fontSize) });
+      break;
     case "border-color":
       out.borderColor = parseColor(value);
       break;
@@ -384,6 +479,18 @@ function applyDeclaration(out: Partial<CssStyle>, property: string, rawValue: st
     case "border-bottom-color":
     case "border-left-color":
       setBorderSide(out, borderSideFromProperty(property, "-color"), { color: parseColor(value) });
+      break;
+    case "border-block-start-color":
+      setBorderSide(out, "top", { color: parseColor(value) });
+      break;
+    case "border-block-end-color":
+      setBorderSide(out, "bottom", { color: parseColor(value) });
+      break;
+    case "border-inline-start-color":
+      setBorderSide(out, "left", { color: parseColor(value) });
+      break;
+    case "border-inline-end-color":
+      setBorderSide(out, "right", { color: parseColor(value) });
       break;
     case "border-radius":
       out.borderRadius = parseLength(value.split(/\s+/)[0], fontSize);
@@ -405,6 +512,43 @@ function setLengthPercentage(out: Partial<CssStyle>, property: "width" | "minWid
   if (parsed.percent !== 0 && parsed.length !== 0) out[calcKey] = parsed;
   else if (parsed.percent !== 0) out[percentKey] = parsed.percent;
   else out[property] = parsed.length;
+}
+
+function applyInset(out: Partial<CssStyle>, value: string, fontSize: number): void {
+  const lengths = cssValueTokens(value).map((part) => parseLength(part, fontSize));
+  if (lengths.some((length) => length === undefined)) return;
+  const [top, right = top, bottom = top, left = right] = lengths as number[];
+  out.top = top;
+  out.right = right;
+  out.bottom = bottom;
+  out.left = left;
+}
+
+function applyTwoValueInset(
+  out: Partial<CssStyle>,
+  firstSide: "top" | "right" | "bottom" | "left",
+  secondSide: "top" | "right" | "bottom" | "left",
+  value: string,
+  fontSize: number
+): void {
+  const [firstRaw, secondRaw = firstRaw] = cssValueTokens(value);
+  const first = parseLength(firstRaw, fontSize);
+  const second = parseLength(secondRaw, fontSize);
+  if (first !== undefined) out[firstSide] = first;
+  if (second !== undefined) out[secondSide] = second;
+}
+
+function applyTwoValueEdges(
+  out: Partial<CssStyle>,
+  property: "margin" | "padding",
+  firstSide: "top" | "right" | "bottom" | "left",
+  secondSide: "top" | "right" | "bottom" | "left",
+  value: string,
+  fontSize: number
+): void {
+  const [firstRaw, secondRaw = firstRaw] = cssValueTokens(value);
+  out[property] = setEdge(out[property], firstSide, parseLength(firstRaw, fontSize));
+  out[property] = setEdge(out[property], secondSide, parseLength(secondRaw, fontSize));
 }
 
 function parseGridTemplateColumns(value: string, fontSize: number): GridTrack[] | undefined {
@@ -483,7 +627,7 @@ function parseBackground(out: Partial<CssStyle>, value: string): void {
 
 function parseBackgroundColor(value: string): CssStyle["background"] | undefined {
   const withoutUrls = value.replace(/url\([^)]*\)/gi, " ");
-  const tokens = withoutUrls.match(/#[0-9a-f]{3,8}\b|rgba?\([^)]*\)|[a-zA-Z]+/g) ?? [];
+  const tokens = withoutUrls.match(/#[0-9a-f]{3,8}\b|rgba?\([^)]*\)|hsla?\([^)]*\)|[a-zA-Z]+/g) ?? [];
   for (const token of tokens) {
     const color = parseColor(token);
     if (color) return color;
@@ -589,7 +733,7 @@ function parseBorder(out: Partial<CssStyle>, value: string, fontSize: number): v
 function parseBorderValue(value: string, fontSize: number): Partial<Border> {
   const out: Partial<Border> = {};
   if (/\bnone\b/.test(value)) out.width = 0;
-  for (const token of value.split(/\s+/)) {
+  for (const token of cssValueTokens(value)) {
     out.width ??= parseLength(token, fontSize);
     out.color ??= parseColor(token);
   }

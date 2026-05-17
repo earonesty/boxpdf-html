@@ -1,0 +1,72 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  body {
+    margin: 0;
+    font: 14px/1.35 Helvetica, Arial, sans-serif;
+    color: rgb(15 23 42);
+  }
+  h1 {
+    margin: 0 0 12px 0;
+    font: 700 20px/1.2 Helvetica, Arial, sans-serif;
+  }
+  .panel {
+    width: 410px;
+    margin: 0 0 14px 0;
+    margin-block: 0 14px;
+    padding: 12px 20px 14px 16px;
+    padding-inline: 16px 20px;
+    padding-block: 12px 14px;
+    border-left: 4px solid hsl(217 91% 60%);
+    border-top: 1px solid #bfdbfecc;
+    border-bottom: 1px solid #bfdbfecc;
+    border-inline-start: 4px solid hsl(217 91% 60%);
+    border-block: 1px solid #bfdbfecc;
+    background: hsl(214 95% 93%);
+  }
+  .panel p {
+    margin: 0;
+    text-indent: 18px;
+  }
+  .contents {
+    display: contents;
+    color: rgb(37 99 235 / 85%);
+    font-weight: 700;
+  }
+  .flow {
+    display: flow-root;
+    position: relative;
+    width: 410px;
+    padding: 10px 70px 10px 10px;
+    border: 1px solid #86efac;
+    background: rgb(240 253 244);
+  }
+  .badge {
+    position: absolute;
+    width: 28px;
+    top: 8px;
+    right: 10px;
+    inset-block-start: 8px;
+    inset-inline-end: 10px;
+    padding-inline: 7px;
+    padding-block: 2px;
+    background: rgba(22, 163, 74, 0.18);
+    color: hsl(142 72% 29%);
+    border-radius: 4px;
+    font: 700 10px/1 Helvetica, Arial, sans-serif;
+  }
+</style>
+</head>
+<body>
+  <h1>CSS parity unlocks</h1>
+  <div class="panel">
+    <p>Logical spacing should create the same left rule, vertical rhythm, and inner padding while <span class="contents">display contents keeps this text inline</span> without adding a visible wrapper box.</p>
+  </div>
+  <div class="flow">
+    Flow-root should behave as a normal block box here, with the badge positioned by logical inset properties and modern color functions.
+    <div class="badge">LIVE</div>
+  </div>
+</body>
+</html>
