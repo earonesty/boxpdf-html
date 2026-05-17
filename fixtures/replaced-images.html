@@ -1,0 +1,43 @@
+<style>
+  @page { size: Letter; margin: 40pt; }
+  body { margin: 0; font-family: Helvetica, Arial, sans-serif; color: #111; font-size: 13px; }
+  .panel {
+    width: 460px;
+    padding: 14px 16px;
+    border: 1px solid #94a3b8;
+    background: #f8fafc;
+  }
+  h2 { margin: 0 0 10px 0; }
+  p { margin: 0 0 12px 0; line-height: 1.25; }
+  .icon {
+    width: 30px;
+    height: 30px;
+    vertical-align: middle;
+    margin: 0 4px;
+  }
+  .row {
+    display: flex;
+    gap: 12px;
+  }
+  .thumb {
+    width: 96px;
+    height: 62px;
+    border: 1px solid #2563eb;
+    object-fit: contain;
+  }
+  .cover {
+    width: 96px;
+    height: 62px;
+    border: 1px solid #16a34a;
+    object-fit: cover;
+  }
+</style>
+<div class="panel">
+  <h2>Replaced Images</h2>
+  <p>Inline image <img class="icon" src="background-source.png"> should sit inside the text run without taking a full line.</p>
+  <div class="row">
+    <img class="thumb" src="background-source.png">
+    <img class="cover" src="background-source.png">
+    <p>Block image boxes should preserve the requested slots and use object-fit when both dimensions are set.</p>
+  </div>
+</div>

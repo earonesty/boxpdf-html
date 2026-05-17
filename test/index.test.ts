@@ -274,6 +274,22 @@ c</p>`,
     expect(paragraphNode.props.floats?.[0]).toMatchObject({ side: "right" });
   });
 
+  it("maps img elements to replaced image nodes", () => {
+    const image = { width: 2, height: 1 } as PDFImage;
+    const result = htmlToBoxpdf(
+      `<style>img{width:30px;height:20px;object-fit:contain}</style><p>A <img src="x.png"> B</p>`,
+      { font, width: 320, resolveImage: () => image }
+    );
+    const block = result.nodes[0];
+    if (block?.kind !== "vstack") throw new Error("expected block");
+    const paragraphNode = block.children[0];
+    if (paragraphNode?.kind !== "paragraph") throw new Error("expected paragraph");
+    const inline = paragraphNode.runs.find((item) => "node" in item);
+    expect(inline).toMatchObject({ width: 22.5, height: 15 });
+    if (!inline || !("node" in inline)) throw new Error("expected inline image");
+    expect(inline.node.kind).toBe("imageBox");
+  });
+
   it("resolves percentage widths against parent content width", () => {
     const result = htmlToBoxpdf(
       `<style>.panel{width:300px;padding:10px}table{width:100%}</style>

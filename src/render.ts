@@ -2,6 +2,9 @@ import {
   type BackgroundImage,
   hline,
   hstack,
+  image as boxImage,
+  imageFit,
+  inlineNode,
   paragraph,
   type ParagraphFloat,
   run,
@@ -27,6 +30,10 @@ function renderNode(node: StyledNode, options: HtmlToBoxpdfOptions, warnings: st
     return trimmed ? [text(trimmed, textOptions(node, options))] : [];
   }
   if (node.style.display === "none") return [];
+  if (node.node.tag === "img") {
+    const rendered = renderImageNode(node, options, warnings);
+    return rendered ? [rendered] : [];
+  }
   if (node.node.tag === "br") return [text("", textOptions({ style: node.style } as StyledText, options))];
   if (node.node.tag === "hr") return [hline({ color: node.style.borderColor ?? { r: 0, g: 0, b: 0 }, thickness: node.style.borderWidth ?? 1 })];
   if (node.node.tag === "ul" || node.node.tag === "ol") return [renderList(node, options, warnings)];
@@ -69,7 +76,7 @@ function renderBlockChildren(node: StyledElement, options: HtmlToBoxpdfOptions, 
   let floats: ParagraphFloat[] = [];
 
   const flushInline = (): void => {
-    const runs = collectInlineRuns(inlineBuffer, options);
+    const runs = collectInlineRuns(inlineBuffer, options, warnings);
     if (runs.length > 0 || floats.length > 0) {
       out.push(paragraph({ width: contentWidth(node), align: node.style.textAlign, wrap: shouldWrap(node.style), floats }, ...runs));
       floats = [];
@@ -143,7 +150,7 @@ function attachFloatsToNode(node: BoxNode, floats: ParagraphFloat[]): { node: Bo
 }
 
 function renderFlex(node: StyledElement, options: HtmlToBoxpdfOptions, warnings: string[]): BoxNode {
-  const children = node.children.flatMap((child) => renderNode(child, options, warnings));
+  const children = node.children.flatMap((child) => renderNode(child, options, warnings)).map(defaultFlexItem);
   const style = {
     width: cssBoxWidth(node),
     height: cssBoxHeight(node),
@@ -167,8 +174,18 @@ function renderFlex(node: StyledElement, options: HtmlToBoxpdfOptions, warnings:
   return node.style.flexDirection === "row" ? hstack(style, ...children) : vstack(style, ...children);
 }
 
+function defaultFlexItem(node: BoxNode): BoxNode {
+  if (node.kind === "vstack" || node.kind === "hstack") {
+    return { ...node, style: { ...node.style, shrink: node.style.shrink ?? 1 } };
+  }
+  if (node.kind === "text") {
+    return { ...node, props: { ...node.props, shrink: node.props.shrink ?? 1 } };
+  }
+  return node;
+}
+
 function renderInlineGroup(node: StyledElement, options: HtmlToBoxpdfOptions, warnings: string[]): BoxNode[] {
-  const runs = collectInlineRuns([node], options);
+  const runs = collectInlineRuns([node], options, warnings);
   if (runs.length === 0) return [];
   return [paragraph({ width: contentWidth(node), align: node.style.textAlign, wrap: shouldWrap(node.style) }, ...runs)];
 }
@@ -196,7 +213,7 @@ function renderListItem(
   options: HtmlToBoxpdfOptions,
   warnings: string[]
 ): BoxNode[] {
-  const runs = collectInlineRuns(item.children, options);
+  const runs = collectInlineRuns(item.children, options, warnings);
   const marker = listStyleType === "none" ? "" : listStyleType === "decimal" ? `${index + 1}.  ` : "•  ";
   const paragraphs = runs.length > 0
     ? [
@@ -218,7 +235,7 @@ function renderListItem(
   return [...paragraphs, ...blockChildren];
 }
 
-function collectInlineRuns(nodes: StyledNode[], options: HtmlToBoxpdfOptions): ParagraphItem[] {
+function collectInlineRuns(nodes: StyledNode[], options: HtmlToBoxpdfOptions, warnings: string[]): ParagraphItem[] {
   const runs: ParagraphItem[] = [];
   for (const node of nodes) {
     if ("text" in node) {
@@ -235,11 +252,50 @@ function collectInlineRuns(nodes: StyledNode[], options: HtmlToBoxpdfOptions): P
       runs.push(run("\n", runStyle({ style: node.style } as StyledText, options)));
       continue;
     }
+    if (node.node.tag === "img") {
+      const rendered = renderImageNode(node, options, warnings);
+      if (rendered) {
+        const measured = imageSize(node, options);
+        runs.push(inlineNode(rendered, { width: measured.width, height: measured.height, verticalAlign: node.style.verticalAlign === "middle" ? "middle" : undefined }));
+      }
+      continue;
+    }
     if (node.style.display === "inline" || node.style.display === "inline-block") {
-      runs.push(...collectInlineRuns(node.children, options));
+      runs.push(...collectInlineRuns(node.children, options, warnings));
     }
   }
   return runs;
+}
+
+function renderImageNode(node: StyledElement, options: HtmlToBoxpdfOptions, warnings: string[]): BoxNode | undefined {
+  const src = node.node.attrs.src;
+  if (!src || !options.resolveImage) {
+    warnings.push("img without a resolvable src was skipped");
+    return undefined;
+  }
+  const pdfImage = options.resolveImage({ url: src, baseUrl: options.baseUrl });
+  if (!pdfImage) {
+    warnings.push(`img src "${src}" did not resolve`);
+    return undefined;
+  }
+  const size = imageSize(node, options, pdfImage);
+  if (node.style.objectFit === "contain" || node.style.objectFit === "cover") {
+    return imageFit(pdfImage, { width: size.width, height: size.height, fit: node.style.objectFit, margin: node.style.margin });
+  }
+  return boxImage(pdfImage, { width: size.width, height: size.height, margin: node.style.margin });
+}
+
+function imageSize(node: StyledElement, options: HtmlToBoxpdfOptions, resolvedImage?: ReturnType<NonNullable<HtmlToBoxpdfOptions["resolveImage"]>>): { width: number; height: number } {
+  const src = node.node.attrs.src;
+  const pdfImage = resolvedImage ?? (src ? options.resolveImage?.({ url: src, baseUrl: options.baseUrl }) : undefined);
+  const naturalWidth = Math.max(1, (pdfImage?.width ?? 1) * 0.75);
+  const naturalHeight = Math.max(1, (pdfImage?.height ?? 1) * 0.75);
+  const width = node.style.width;
+  const height = node.style.height;
+  if (width !== undefined && height !== undefined) return { width, height };
+  if (width !== undefined) return { width, height: width * (naturalHeight / naturalWidth) };
+  if (height !== undefined) return { width: height * (naturalWidth / naturalHeight), height };
+  return { width: naturalWidth, height: naturalHeight };
 }
 
 function renderTable(node: StyledElement, options: HtmlToBoxpdfOptions, warnings: string[]): BoxNode[] {

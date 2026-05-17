@@ -67,6 +67,7 @@ export interface CssStyle {
   backgroundRepeat?: "repeat" | "repeat-x" | "repeat-y" | "no-repeat";
   backgroundPositionX?: number;
   backgroundPositionY?: number;
+  objectFit?: "fill" | "contain" | "cover";
   fontFamily?: string[];
   fontSize: number;
   fontWeight: FontWeight;

@@ -124,6 +124,9 @@ function applyDeclaration(out: Partial<CssStyle>, property: string, rawValue: st
     case "background-position":
       parseBackgroundPosition(out, value);
       break;
+    case "object-fit":
+      if (value === "fill" || value === "contain" || value === "cover") out.objectFit = value;
+      break;
     case "font-size":
       out.fontSize = parseLength(value, fontSize) ?? out.fontSize;
       break;

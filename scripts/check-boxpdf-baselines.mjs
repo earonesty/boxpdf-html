@@ -80,6 +80,12 @@ async function embedImages(doc, source, baseDir) {
     const imagePath = resolve(baseDir, url);
     if (!images.has(imagePath)) images.set(imagePath, await embedImage(doc, imagePath));
   }
+  for (const match of source.matchAll(/<img\b[^>]*\bsrc\s*=\s*(?:"([^"]+)"|'([^']+)'|([^\s>]+))/gi)) {
+    const url = (match[1] ?? match[2] ?? match[3])?.trim();
+    if (!url || /^(https?:|data:)/i.test(url)) continue;
+    const imagePath = resolve(baseDir, url);
+    if (!images.has(imagePath)) images.set(imagePath, await embedImage(doc, imagePath));
+  }
   return images;
 }
 

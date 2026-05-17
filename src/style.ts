@@ -33,6 +33,10 @@ function styleElement(node: HtmlElementNode, rules: CssRule[], inherited: CssSty
   if (style.widthPercent !== undefined && containingWidth !== undefined) style.width = containingWidth * style.widthPercent;
   if (style.minWidthPercent !== undefined && containingWidth !== undefined) style.minWidth = containingWidth * style.minWidthPercent;
   if (style.maxWidthPercent !== undefined && containingWidth !== undefined) style.maxWidth = containingWidth * style.maxWidthPercent;
+  if (node.tag === "img") {
+    style.width ??= parseDimensionAttr(node.attrs.width);
+    style.height ??= parseDimensionAttr(node.attrs.height);
+  }
   if (style.width === undefined && containingWidth !== undefined && (style.minWidth !== undefined || style.maxWidth !== undefined)) {
     style.width = containingWidth;
   }
@@ -49,7 +53,7 @@ function styleElement(node: HtmlElementNode, rules: CssRule[], inherited: CssSty
 export function defaultStyle(fontSize = 12): CssStyle {
   return {
     display: "block",
-    flexDirection: "column",
+    flexDirection: "row",
     alignItems: "stretch",
     justifyContent: "start",
     fontSize,
@@ -75,6 +79,7 @@ function defaultsForTag(tag: string, inherited: CssStyle): CssStyle {
     backgroundRepeat: undefined,
     backgroundPositionX: undefined,
     backgroundPositionY: undefined,
+    objectFit: undefined,
     borderWidth: undefined,
     borderColor: undefined,
     borderSides: undefined,
@@ -124,6 +129,7 @@ function defaultsForTag(tag: string, inherited: CssStyle): CssStyle {
     style.listStyleType = tag === "ol" ? "decimal" : "disc";
   }
   if (tag === "li") style.display = "block";
+  if (tag === "img") style.display = "inline";
   if (tag === "pre") style.whiteSpace = "pre";
   if (tag === "br") style.display = "inline";
   return style;
@@ -142,6 +148,7 @@ function inherit(style: CssStyle): CssStyle {
     backgroundRepeat: undefined,
     backgroundPositionX: undefined,
     backgroundPositionY: undefined,
+    objectFit: undefined,
     borderWidth: undefined,
     borderColor: undefined,
     borderSides: undefined,
@@ -161,6 +168,13 @@ function inherit(style: CssStyle): CssStyle {
     left: undefined,
     zIndex: undefined
   };
+}
+
+function parseDimensionAttr(value: string | undefined): number | undefined {
+  if (!value) return undefined;
+  const normalized = value.trim();
+  if (/^\d+(?:\.\d+)?$/.test(normalized)) return Number(normalized) * 0.75;
+  return undefined;
 }
 
 function mergeStyles(...styles: Array<Partial<CssStyle>>): CssStyle {
