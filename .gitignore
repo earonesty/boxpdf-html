@@ -2,7 +2,6 @@ node_modules
 dist
 coverage
 .tools
-artifacts/**/*.pdf
 *.log
 .DS_Store
 .pack
