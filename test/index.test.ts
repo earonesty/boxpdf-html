@@ -100,6 +100,20 @@ c</p>`,
     expect(row.children[0]).toMatchObject({ kind: "vstack", style: { width: expect.any(Number) } });
   });
 
+  it("keeps padded justify-between flex items at their content width", () => {
+    const result = htmlToBoxpdf(
+      `<style>.row{display:flex;justify-content:space-between;padding:16px;width:300px}</style>
+       <div class="row"><span>Amount due</span><span style="font-weight:bold;font-size:20px">$1,250.00</span></div>`,
+      { font, boldFont: bold, width: 500 }
+    );
+    const row = result.nodes[0];
+    if (row?.kind !== "hstack") throw new Error("expected flex row");
+    const amount = row.children[1];
+    if (amount?.kind !== "vstack") throw new Error("expected flex item");
+    expect(amount.style.width).toBeGreaterThan(65);
+    expect(amount.style.shrink).toBe(0);
+  });
+
   it("parses generated Tailwind utility values used by invoice-style HTML", () => {
     const result = htmlToBoxpdf(
       `<style>
@@ -690,8 +704,36 @@ c</p>`,
       { font, width: 320, diagnostics: { unsupportedCss: true, sampleLimit: 1 } }
     );
     expect(result.diagnostics?.unsupportedCss).toEqual([
-      { property: "filter", value: "blur(2px)", count: 2, samples: ["filter: blur(2px)"] },
-      { property: "backdrop-filter", value: "blur(1px)", count: 1, samples: ["backdrop-filter: blur(1px)"] }
+      { property: "filter", value: "blur(2px)", count: 2, samples: [".a { filter: blur(2px) }"] },
+      { property: "backdrop-filter", value: "blur(1px)", count: 1, samples: [".a { backdrop-filter: blur(1px) }"] }
+    ]);
+  });
+
+  it("keeps Tailwind unsupported CSS diagnostics focused on utilities", () => {
+    const result = htmlToBoxpdf(
+      `<style>
+        *{-webkit-text-size-adjust:100%;font-feature-settings:normal}
+        h1{font-variation-settings:normal}
+        .tracking-wide{letter-spacing:.025em}
+        .shadow-sm{box-shadow:0 1px 2px #0003}
+        .shadow-again{box-shadow:0 1px 2px #0003}
+      </style>
+      <h1 class="tracking-wide shadow-sm shadow-again">Tailwind</h1>`,
+      { font, width: 320, diagnostics: { unsupportedCss: true, sampleLimit: 2 } }
+    );
+    expect(result.diagnostics?.unsupportedCss).toEqual([
+      {
+        property: "box-shadow",
+        value: "0 1px 2px #0003",
+        count: 2,
+        samples: [".shadow-sm { box-shadow: 0 1px 2px #0003 }", ".shadow-again { box-shadow: 0 1px 2px #0003 }"]
+      },
+      {
+        property: "letter-spacing",
+        value: ".025em",
+        count: 1,
+        samples: [".tracking-wide { letter-spacing: .025em }"]
+      }
     ]);
   });
 

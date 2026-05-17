@@ -22,8 +22,8 @@ export function parseStylesheets(stylesheets: string[]): CssRule[] {
       for (const selector of selectorList(prelude)) {
         rules.push({
           selector,
-          declarations: declarations.declarations,
-          importantDeclarations: declarations.importantDeclarations,
+          declarations: declarations.declarations.map((declaration) => ({ ...declaration, selector })),
+          importantDeclarations: declarations.importantDeclarations.map((declaration) => ({ ...declaration, selector })),
           specificity: specificity(selector),
           order: order++
         });
@@ -111,12 +111,16 @@ function parseDeclarationsInto(
     const property = declaration.property.trim();
     if (property.startsWith("--")) continue;
     if (!isSupportedCssProperty(property)) {
-      unsupportedCss?.(declaration);
+      if (shouldReportUnsupportedCss(declaration)) unsupportedCss?.(declaration);
       continue;
     }
     applyDeclaration(out, property, resolveVars(declaration.value, vars), fontSize);
   }
   if (Object.keys(vars).length > 0) out.customProperties = vars;
+}
+
+function shouldReportUnsupportedCss(declaration: CssDeclaration): boolean {
+  return declaration.selector === undefined || declaration.selector.includes(".");
 }
 
 const supportedCssProperties = new Set([
@@ -133,6 +137,7 @@ const supportedCssProperties = new Set([
   "gap", "column-gap", "grid-column-gap", "row-gap", "grid-row-gap",
   "grid-template-columns", "grid-column", "grid-column-start", "grid-column-end",
   "border", "border-top", "border-right", "border-bottom", "border-left", "border-block", "border-inline", "border-block-start", "border-block-end", "border-inline-start", "border-inline-end",
+  "border-style", "border-top-style", "border-right-style", "border-bottom-style", "border-left-style", "border-block-start-style", "border-block-end-style", "border-inline-start-style", "border-inline-end-style",
   "border-width", "border-top-width", "border-right-width", "border-bottom-width", "border-left-width", "border-block-start-width", "border-block-end-width", "border-inline-start-width", "border-inline-end-width",
   "border-color", "border-top-color", "border-right-color", "border-bottom-color", "border-left-color", "border-block-start-color", "border-block-end-color", "border-inline-start-color", "border-inline-end-color",
   "border-radius", "border-collapse"
@@ -483,6 +488,16 @@ function applyDeclaration(out: Partial<CssStyle>, property: string, rawValue: st
       break;
     case "border":
       parseBorder(out, value, fontSize);
+      break;
+    case "border-style":
+    case "border-top-style":
+    case "border-right-style":
+    case "border-bottom-style":
+    case "border-left-style":
+    case "border-block-start-style":
+    case "border-block-end-style":
+    case "border-inline-start-style":
+    case "border-inline-end-style":
       break;
     case "border-top":
     case "border-right":

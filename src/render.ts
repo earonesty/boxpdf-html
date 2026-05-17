@@ -69,7 +69,7 @@ function renderBlock(node: StyledElement, options: HtmlToBoxpdfOptions, warnings
       bottom: node.style.bottom,
       left: node.style.left,
       zIndex: node.style.zIndex,
-      align: "stretch"
+      align: node.style.display === "block" ? "stretch" : "start"
     },
     ...children
   );
@@ -166,11 +166,12 @@ function renderFlex(node: StyledElement, options: HtmlToBoxpdfOptions, warnings:
   const ordered = orderedChildren(node.children);
   const sourceChildren = node.style.flexDirection.endsWith("-reverse") ? [...ordered].reverse() : ordered;
   const width = cssBoxWidth(node);
+  const justifyWidth = contentWidth(node);
   const children = flexChildrenWithJustification(
     sourceChildren.flatMap((child) => renderFlexChild(child, options, warnings)).map(defaultFlexItem),
     node.style.justifyContent,
     node.style.flexDirection,
-    width,
+    justifyWidth,
     node.style.gap ?? 0
   );
   const style = {
@@ -207,16 +208,21 @@ function flexChildrenWithJustification(
   if (!direction.startsWith("row") || justify !== "between" || children.length < 2) return { nodes: children, justify };
   const available = width ?? Number.POSITIVE_INFINITY;
   if (!Number.isFinite(available)) return { nodes: children, justify };
-  const childWidth = children.reduce((sum, child) => sum + measure(child, available).width, 0);
+  const measuredWidths = children.map((child) => measure(child, available).width);
+  const childWidth = measuredWidths.reduce((sum, width) => sum + width, 0);
   const spacerWidth = Math.max(0, (available - childWidth - gap * (children.length - 1)) / (children.length - 1));
-  const nodes = children.map((child, index) => (index === children.length - 1 ? child : addWidth(child, spacerWidth, available)));
+  const nodes = children.map((child, index) => setFlexItemWidth(child, measuredWidths[index]! + (index === children.length - 1 ? 0 : spacerWidth)));
   return { nodes, justify: "start" };
 }
 
-function addWidth(node: BoxNode, extra: number, parentWidth: number): BoxNode {
-  if (node.kind !== "vstack" && node.kind !== "hstack") return node;
-  const width = measure(node, parentWidth).width + extra;
-  return { ...node, style: { ...node.style, width } };
+function setFlexItemWidth(node: BoxNode, width: number): BoxNode {
+  if (node.kind === "vstack" || node.kind === "hstack") {
+    return { ...node, style: { ...node.style, width, shrink: 0 } };
+  }
+  if (node.kind === "text") {
+    return { ...node, props: { ...node.props, width, shrink: 0 } };
+  }
+  return node;
 }
 
 function renderFlexChild(node: StyledNode, options: HtmlToBoxpdfOptions, warnings: string[]): BoxNode[] {

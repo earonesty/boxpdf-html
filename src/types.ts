@@ -178,6 +178,7 @@ export interface CssRule {
 export interface CssDeclaration {
   property: string;
   value: string;
+  selector?: string;
 }
 
 export interface RenderResult {

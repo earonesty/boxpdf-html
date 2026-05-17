@@ -56,7 +56,8 @@ function createDiagnostics(options: HtmlToBoxpdfOptions): { recordUnsupportedCss
       const key = `${property}\n${value}`;
       const entry = unsupported.get(key) ?? { property, value, count: 0, samples: [] };
       entry.count += 1;
-      if (entry.samples.length < sampleLimit) entry.samples.push(`${property}: ${value}`);
+      const sample = declaration.selector ? `${declaration.selector} { ${property}: ${value} }` : `${property}: ${value}`;
+      if (entry.samples.length < sampleLimit && !entry.samples.includes(sample)) entry.samples.push(sample);
       unsupported.set(key, entry);
     },
     toJSON() {
