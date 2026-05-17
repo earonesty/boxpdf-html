@@ -68,7 +68,8 @@ function renderBlock(node: StyledElement, options: HtmlToBoxpdfOptions, warnings
       right: node.style.right,
       bottom: node.style.bottom,
       left: node.style.left,
-      zIndex: node.style.zIndex
+      zIndex: node.style.zIndex,
+      align: "stretch"
     },
     ...children
   );
@@ -208,13 +209,13 @@ function flexChildrenWithJustification(
   if (!Number.isFinite(available)) return { nodes: children, justify };
   const childWidth = children.reduce((sum, child) => sum + measure(child, available).width, 0);
   const spacerWidth = Math.max(0, (available - childWidth - gap * (children.length - 1)) / (children.length - 1));
-  const nodes = children.map((child, index) => (index === children.length - 1 ? child : addWidth(child, spacerWidth)));
+  const nodes = children.map((child, index) => (index === children.length - 1 ? child : addWidth(child, spacerWidth, available)));
   return { nodes, justify: "start" };
 }
 
-function addWidth(node: BoxNode, extra: number): BoxNode {
+function addWidth(node: BoxNode, extra: number, parentWidth: number): BoxNode {
   if (node.kind !== "vstack" && node.kind !== "hstack") return node;
-  const width = measure(node, Number.POSITIVE_INFINITY).width + extra;
+  const width = measure(node, parentWidth).width + extra;
   return { ...node, style: { ...node.style, width } };
 }
 
@@ -405,7 +406,7 @@ function resolveGridTracks(tracks: GridTrack[] | undefined, width: number | unde
 
 function constrainGridItem(node: BoxNode, width: number): BoxNode {
   if (node.kind === "vstack" || node.kind === "hstack") {
-    return { ...node, style: { ...node.style, width: node.style.width ?? width, shrink: node.style.shrink ?? 1 } };
+    return constrainBlockDescendants({ ...node, style: { ...node.style, width: node.style.width ?? width, shrink: node.style.shrink ?? 1 } }, width);
   }
   if (node.kind === "paragraph") {
     return { ...node, props: { ...node.props, width: node.props.width ?? width } };
@@ -414,6 +415,34 @@ function constrainGridItem(node: BoxNode, width: number): BoxNode {
     return { ...node, props: { ...node.props, width: node.props.width ?? width, shrink: node.props.shrink ?? 1 } };
   }
   return vstack({ width, shrink: 1 }, node);
+}
+
+function constrainBlockDescendants<T extends Extract<BoxNode, { kind: "vstack" | "hstack" }>>(node: T, width: number): T {
+  const innerWidth = boxNodeContentWidth(node, width);
+  const children = node.children.map((child) => constrainFlowChild(child, innerWidth));
+  return { ...node, children };
+}
+
+function constrainFlowChild(child: BoxNode, width: number): BoxNode {
+  if (child.kind === "paragraph") {
+    return { ...child, props: { ...child.props, width: child.props.width === undefined ? width : Math.min(child.props.width, width) } };
+  }
+  if (child.kind === "text") {
+    return { ...child, props: { ...child.props, width: child.props.width === undefined ? width : Math.min(child.props.width, width) } };
+  }
+  if (child.kind === "vstack" || child.kind === "hstack") {
+    const nextWidth = child.style.width === undefined ? width : Math.min(child.style.width, width);
+    return constrainBlockDescendants({ ...child, style: { ...child.style, width: nextWidth } }, nextWidth);
+  }
+  return child;
+}
+
+function boxNodeContentWidth(node: Extract<BoxNode, { kind: "vstack" | "hstack" }>, width: number): number {
+  const padding = edges(node.style.padding);
+  const borderWidth = node.style.border?.width ?? 0;
+  const leftBorder = node.style.borderSides?.left?.width ?? borderWidth;
+  const rightBorder = node.style.borderSides?.right?.width ?? borderWidth;
+  return Math.max(0, width - padding.left - padding.right - leftBorder - rightBorder);
 }
 
 function stretchGridRow(nodes: BoxNode[], tracks: number[]): BoxNode[] {

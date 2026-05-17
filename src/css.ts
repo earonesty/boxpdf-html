@@ -106,6 +106,7 @@ function parseDeclarationsInto(
   customProperties: Record<string, string>,
   unsupportedCss?: UnsupportedCssSink
 ): void {
+  const vars = customPropertiesFrom(declarations, customProperties);
   for (const declaration of declarations) {
     const property = declaration.property.trim();
     if (property.startsWith("--")) continue;
@@ -113,9 +114,8 @@ function parseDeclarationsInto(
       unsupportedCss?.(declaration);
       continue;
     }
-    applyDeclaration(out, property, resolveVars(declaration.value, customProperties), fontSize);
+    applyDeclaration(out, property, resolveVars(declaration.value, vars), fontSize);
   }
-  const vars = customPropertiesFrom(declarations, customProperties);
   if (Object.keys(vars).length > 0) out.customProperties = vars;
 }
 
@@ -701,11 +701,31 @@ function parseGridTemplateColumns(value: string, fontSize: number): GridTrack[] 
 }
 
 function expandGridRepeats(value: string): string {
-  return value.replace(/repeat\(\s*(\d+)\s*,\s*([^)]+)\)/g, (_match, countRaw: string, repeated: string) => {
-    const count = Number(countRaw);
-    if (!Number.isInteger(count) || count <= 0 || count > 24) return "";
-    return Array.from({ length: count }, () => repeated.trim()).join(" ");
-  });
+  let out = "";
+  let index = 0;
+  while (index < value.length) {
+    const repeatStart = value.toLowerCase().indexOf("repeat(", index);
+    if (repeatStart === -1) {
+      out += value.slice(index);
+      break;
+    }
+    out += value.slice(index, repeatStart);
+    const argsStart = repeatStart + "repeat(".length;
+    const close = closingParenIndex(value, argsStart);
+    if (close === -1) {
+      out += value.slice(repeatStart);
+      break;
+    }
+    const args = value.slice(argsStart, close);
+    const comma = topLevelCommaIndex(args);
+    const count = Number(comma === -1 ? NaN : args.slice(0, comma).trim());
+    const repeated = comma === -1 ? "" : args.slice(comma + 1).trim();
+    out += Number.isInteger(count) && count > 0 && count <= 24
+      ? Array.from({ length: count }, () => repeated).join(" ")
+      : "";
+    index = close + 1;
+  }
+  return out;
 }
 
 function gridTrackTokens(value: string): string[] {
@@ -884,8 +904,30 @@ function borderSideFromProperty(property: string, suffix: string): string {
 function selectorList(prelude: CssNode): string[] {
   return generate(prelude)
     .split(",")
-    .map((selector) => selector.trim())
+    .map((selector) => stripWhereSelectors(selector.trim()))
     .filter(Boolean);
+}
+
+function stripWhereSelectors(selector: string): string {
+  let out = "";
+  let index = 0;
+  while (index < selector.length) {
+    const start = selector.indexOf(":where(", index);
+    if (start === -1) {
+      out += selector.slice(index);
+      break;
+    }
+    out += selector.slice(index, start);
+    const argsStart = start + ":where(".length;
+    const close = closingParenIndex(selector, argsStart);
+    if (close === -1) {
+      out += selector.slice(start);
+      break;
+    }
+    out += selector.slice(argsStart, close);
+    index = close + 1;
+  }
+  return out;
 }
 
 function matchesSelector(node: HtmlElementNode, selector: string): boolean {
@@ -1010,6 +1052,10 @@ function stripSupportedPseudos(selector: string, node: HtmlElementNode): string 
     const arg = match.arg?.trim();
     if (name === "first-child") {
       if (elementIndex(node) !== 1) return undefined;
+    } else if (name === "not") {
+      if (arg === ":last-child" && elementIndex(node) === elementSiblings(node).length) return undefined;
+      else if (arg === ":first-child" && elementIndex(node) === 1) return undefined;
+      else if (arg !== ":last-child" && arg !== ":first-child") return undefined;
     } else if (name === "root") {
       if (node.parent !== undefined) return undefined;
     } else if (name === "last-child") {

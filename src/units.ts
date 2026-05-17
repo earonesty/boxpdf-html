@@ -34,40 +34,7 @@ export function parsePercentage(value: string | undefined): number | undefined {
 export function parseLengthPercentage(value: string | undefined, fontSize: number): LengthPercentage | undefined {
   if (!value) return undefined;
   const normalized = value.trim().toLowerCase();
-  if (!isCalc(normalized)) {
-    const percent = parseSimplePercentage(normalized);
-    if (percent !== undefined) return { length: 0, percent };
-    const length = parseSimpleLength(normalized, fontSize);
-    return length === undefined ? undefined : { length, percent: 0 };
-  }
-  const body = normalized.slice(5, -1).trim();
-  const product = parseCalcProduct(body, fontSize);
-  if (product) return product;
-  const tokens = body.replace(/([+-])/g, " $1 ").trim().split(/\s+/);
-  let sign = 1;
-  let length = 0;
-  let percent = 0;
-  for (const token of tokens) {
-    if (token === "+") {
-      sign = 1;
-      continue;
-    }
-    if (token === "-") {
-      sign = -1;
-      continue;
-    }
-    const tokenPercent = parseSimplePercentage(token);
-    if (tokenPercent !== undefined) {
-      percent += sign * tokenPercent;
-      sign = 1;
-      continue;
-    }
-    const tokenLength = parseSimpleLength(token, fontSize);
-    if (tokenLength === undefined) return undefined;
-    length += sign * tokenLength;
-    sign = 1;
-  }
-  return { length, percent };
+  return parseCalcLengthPercentage(normalized, fontSize);
 }
 
 export function parseLineHeight(value: string | undefined, fontSize: number): number | undefined {
@@ -77,7 +44,7 @@ export function parseLineHeight(value: string | undefined, fontSize: number): nu
   const unitless = /^([0-9.]+)$/.exec(normalized);
   if (unitless) return Number(unitless[1]) * fontSize;
   if (isCalc(normalized)) {
-    const number = parseCalcNumber(normalized.slice(5, -1).trim());
+    const number = parseCalcNumber(normalized);
     if (number !== undefined) return number * fontSize;
   }
   return parseLength(normalized, fontSize);
@@ -89,7 +56,7 @@ export function parseLineHeightScale(value: string | undefined): number | undefi
   const unitless = /^([0-9.]+)$/.exec(normalized);
   if (unitless) return Number(unitless[1]);
   if (!isCalc(normalized)) return undefined;
-  return parseCalcNumber(normalized.slice(5, -1).trim());
+  return parseCalcNumber(normalized);
 }
 
 function isCalc(value: string): boolean {
@@ -117,38 +84,80 @@ function parseSimpleLength(value: string, fontSize: number): number | undefined 
   return amount * 0.75;
 }
 
-function parseCalcProduct(value: string, fontSize: number): LengthPercentage | undefined {
-  const multiplied = /^(.+?)\s*\*\s*(-?[0-9.]+)$/.exec(value) ?? /^(-?[0-9.]+)\s*\*\s*(.+)$/.exec(value);
-  if (multiplied) {
-    const firstNumber = Number(multiplied[1]);
-    const factor = Number.isFinite(firstNumber) ? firstNumber : Number(multiplied[2]);
-    const valueToken = Number.isFinite(firstNumber) ? multiplied[2]!.trim() : multiplied[1]!.trim();
-    const parsed = parseLengthPercentage(valueToken, fontSize);
-    return parsed && Number.isFinite(factor) ? { length: parsed.length * factor, percent: parsed.percent * factor } : undefined;
+function parseCalcLengthPercentage(value: string, fontSize: number): LengthPercentage | undefined {
+  const stripped = stripCalc(value.trim());
+  const simplePercent = parseSimplePercentage(stripped);
+  if (simplePercent !== undefined) return { length: 0, percent: simplePercent };
+  const simpleLength = parseSimpleLength(stripped, fontSize);
+  if (simpleLength !== undefined) return { length: simpleLength, percent: 0 };
+
+  const sum = topLevelOperator(stripped, ["+", "-"]);
+  if (sum) {
+    const left = parseCalcLengthPercentage(stripped.slice(0, sum.index), fontSize);
+    const right = parseCalcLengthPercentage(stripped.slice(sum.index + 1), fontSize);
+    if (!left || !right) return undefined;
+    const sign = sum.operator === "-" ? -1 : 1;
+    return { length: left.length + sign * right.length, percent: left.percent + sign * right.percent };
   }
-  const divided = /^(.+?)\s*\/\s*(-?[0-9.]+)$/.exec(value);
-  if (divided) {
-    const divisor = Number(divided[2]);
-    if (!Number.isFinite(divisor) || divisor === 0) return undefined;
-    const parsed = parseLengthPercentage(divided[1]!.trim(), fontSize);
-    return parsed ? { length: parsed.length / divisor, percent: parsed.percent / divisor } : undefined;
+
+  const product = topLevelOperator(stripped, ["*", "/"]);
+  if (product) {
+    const leftRaw = stripped.slice(0, product.index);
+    const rightRaw = stripped.slice(product.index + 1);
+    const leftLength = parseCalcLengthPercentage(leftRaw, fontSize);
+    const rightLength = parseCalcLengthPercentage(rightRaw, fontSize);
+    const leftNumber = parseCalcNumber(leftRaw);
+    const rightNumber = parseCalcNumber(rightRaw);
+    if (product.operator === "*" && leftLength && rightNumber !== undefined) {
+      return { length: leftLength.length * rightNumber, percent: leftLength.percent * rightNumber };
+    }
+    if (product.operator === "*" && rightLength && leftNumber !== undefined) {
+      return { length: rightLength.length * leftNumber, percent: rightLength.percent * leftNumber };
+    }
+    if (product.operator === "/" && leftLength && rightNumber !== undefined && rightNumber !== 0) {
+      return { length: leftLength.length / rightNumber, percent: leftLength.percent / rightNumber };
+    }
   }
   return undefined;
 }
 
 function parseCalcNumber(value: string): number | undefined {
-  const divided = /^(-?[0-9.]+)\s*\/\s*(-?[0-9.]+)$/.exec(value);
-  if (divided) {
-    const left = Number(divided[1]);
-    const right = Number(divided[2]);
-    return Number.isFinite(left) && Number.isFinite(right) && right !== 0 ? left / right : undefined;
+  const stripped = stripCalc(value.trim());
+  const sum = topLevelOperator(stripped, ["+", "-"]);
+  if (sum) {
+    const left = parseCalcNumber(stripped.slice(0, sum.index));
+    const right = parseCalcNumber(stripped.slice(sum.index + 1));
+    if (left === undefined || right === undefined) return undefined;
+    return sum.operator === "-" ? left - right : left + right;
   }
-  const multiplied = /^(-?[0-9.]+)\s*\*\s*(-?[0-9.]+)$/.exec(value);
-  if (multiplied) {
-    const left = Number(multiplied[1]);
-    const right = Number(multiplied[2]);
-    return Number.isFinite(left) && Number.isFinite(right) ? left * right : undefined;
+  const product = topLevelOperator(stripped, ["*", "/"]);
+  if (product) {
+    const left = parseCalcNumber(stripped.slice(0, product.index));
+    const right = parseCalcNumber(stripped.slice(product.index + 1));
+    if (left === undefined || right === undefined) return undefined;
+    return product.operator === "/" ? (right === 0 ? undefined : left / right) : left * right;
   }
-  const number = Number(value);
+  const number = Number(stripped);
   return Number.isFinite(number) ? number : undefined;
+}
+
+function stripCalc(value: string): string {
+  let out = value.trim();
+  while (isCalc(out)) out = out.slice(5, -1).trim();
+  return out;
+}
+
+function topLevelOperator(value: string, operators: string[]): { operator: string; index: number } | undefined {
+  let depth = 0;
+  for (let index = value.length - 1; index >= 0; index -= 1) {
+    const char = value[index]!;
+    if (char === ")") depth += 1;
+    else if (char === "(") depth = Math.max(0, depth - 1);
+    else if (depth === 0 && operators.includes(char)) {
+      const prev = value[index - 1];
+      if ((char === "+" || char === "-") && (index === 0 || prev === undefined || /[+\-*/(]/.test(prev))) continue;
+      return { operator: char, index };
+    }
+  }
+  return undefined;
 }

@@ -8,14 +8,55 @@
   </style>
 </head>
 <body>
-<div class="p-8 bg-white">
-    <h1 class="text-2xl font-bold text-gray-900">
-      Invoice #1234
-    </h1>
+<div class="p-6 bg-[#f8fafc] text-gray-900">
+    <div class="max-w-[520px] min-w-[320px] rounded-[10px] border border-gray-300 bg-white p-5">
+      <div class="flex items-center justify-between gap-x-4 border-b border-gray-200 pb-3">
+        <div>
+          <h1 class="text-[22px] font-bold leading-[1.2] tracking-tight">Acme Studio</h1>
+          <p class="mt-1 text-sm leading-5 text-gray-600">Tailwind utility compatibility</p>
+        </div>
+        <img class="h-12 w-12 rounded-full object-cover" src="background-source.png">
+      </div>
 
-    <div class="mt-4 flex justify-between">
-      <span class="text-gray-600">Total</span>
-      <span class="text-xl font-semibold">$1,250.00</span>
+      <div class="mt-4 grid grid-cols-[1fr_2fr] gap-x-4 gap-y-3">
+        <div class="rounded-md border border-blue-200 bg-blue-50 p-3">
+          <p class="text-xs font-semibold uppercase tracking-wide text-blue-700">Status</p>
+          <p class="mt-1 text-sm font-bold">Paid</p>
+        </div>
+        <div class="rounded-md border border-gray-200 p-3">
+          <p class="text-xs font-semibold uppercase tracking-wide text-gray-600">Notes</p>
+          <p class="mt-1 text-sm leading-5">Two fraction column should be wider and wrap later than the first column.</p>
+        </div>
+      </div>
+
+      <ul class="mt-4 space-y-2 text-sm leading-5">
+        <li class="rounded border border-gray-200 px-3 py-2">Line item spacing uses generated space-y utilities.</li>
+        <li class="rounded border border-gray-200 px-3 py-2">Rounded borders, arbitrary values, and OKLCH palette colors apply.</li>
+      </ul>
+
+      <table class="mt-4 w-full border-collapse text-sm">
+        <thead>
+          <tr class="bg-gray-100">
+            <th class="border border-gray-300 px-3 py-2 text-left font-semibold">Item</th>
+            <th class="border border-gray-300 px-3 py-2 text-right font-semibold">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="border border-gray-300 px-3 py-2">Design work</td>
+            <td class="border border-gray-300 px-3 py-2 text-right">$900.00</td>
+          </tr>
+          <tr>
+            <td class="border border-gray-300 px-3 py-2">Implementation</td>
+            <td class="border border-gray-300 px-3 py-2 text-right">$350.00</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="mt-4 flex items-center justify-between rounded-md bg-gray-900 px-4 py-3 text-white">
+        <span class="text-sm font-semibold">Amount due</span>
+        <span class="text-xl font-bold leading-none">$1,250.00</span>
+      </div>
     </div>
   </div>
 </body>

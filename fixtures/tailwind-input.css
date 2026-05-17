@@ -1,2 +1,3 @@
 @import "tailwindcss";
 @source "./tailwind-invoice-source.html";
+@source "./tailwind-utilities-source.html";
