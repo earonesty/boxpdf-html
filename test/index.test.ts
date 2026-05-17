@@ -145,6 +145,25 @@ c</p>`,
     expect(paragraph.runs[0]).toMatchObject({ style: { color: { r: 0.4, g: 0.4, b: 0.4 } } });
   });
 
+  it("matches escaped Tailwind class selectors", () => {
+    const result = htmlToBoxpdf(
+      `<style>
+        .md\\:flex{display:flex}
+        .w-\\[240px\\]{width:240px}
+        .bg-\\[\\#fafafa\\]{background:#fafafa}
+        .text-\\[13px\\]{font-size:13px}
+      </style>
+      <div class="md:flex w-[240px] bg-[#fafafa] text-[13px]">Escaped</div>`,
+      { font, width: 400 }
+    );
+    const node = result.nodes[0];
+    if (node?.kind !== "hstack") throw new Error("expected flex box");
+    expect(node.style.width).toBe(180);
+    expect(node.style.background).toMatchObject({ r: 250 / 255, g: 250 / 255, b: 250 / 255 });
+    const child = node.children[0];
+    expect(child).toMatchObject({ kind: "text", props: { size: 9.75 } });
+  });
+
   it("cascades important declarations above inline normal declarations", () => {
     const result = htmlToBoxpdf(
       `<style>.notice{color:#111!important}.notice strong{color:#222}</style>

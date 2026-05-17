@@ -982,33 +982,32 @@ function matchesCompound(node: HtmlElementNode, selector: string): boolean {
   if (stripped === undefined) return false;
   selector = stripped;
   if (selector === "*") return true;
-  if (!matchesAttributes(node, selector)) return false;
-  selector = selector.replace(/\[[^\]]+\]/g, "");
-  const id = /#([A-Za-z0-9_-]+)/.exec(selector)?.[1];
+  if (!matchesAttributes(node, stripSimpleSelectors(selector))) return false;
+  const id = simpleSelectorValues(selector, "#")[0];
   if (id && node.attrs.id !== id) return false;
-  const classes = [...selector.matchAll(/\.([A-Za-z0-9_-]+)/g)].map((m) => m[1]!);
+  const classes = simpleSelectorValues(selector, ".");
   const nodeClasses = new Set((node.attrs.class ?? "").split(/\s+/).filter(Boolean));
   if (classes.some((klass) => !nodeClasses.has(klass))) return false;
-  const tag = selector.replace(/[#.][A-Za-z0-9_-]+/g, "").trim();
+  const tag = stripSimpleSelectors(selector).replace(/\[[^\]]+\]/g, "").trim();
   return tag.length === 0 || tag === "*" || tag.toLowerCase() === node.tag;
 }
 
 function specificity(selector: string): number {
-  const ids = (selector.match(/#[A-Za-z0-9_-]+/g) ?? []).length;
+  const ids = selectorParts(selector).reduce((sum, part) => sum + simpleSelectorValues(part.selector, "#").length, 0);
   const classes =
-    (selector.match(/\.[A-Za-z0-9_-]+/g) ?? []).length +
+    selectorParts(selector).reduce((sum, part) => sum + simpleSelectorValues(part.selector, ".").length, 0) +
     (selector.match(/\[[^\]]+\]/g) ?? []).length +
-    (selector.match(/:[A-Za-z-]+(?:\([^)]*\))?/g) ?? []).length;
+    pseudoSelectors(selector).length;
   const tags = selectorParts(selector).filter((part) => /^[A-Za-z]/.test(part.selector.replace(/[#.:\[].*$/, ""))).length;
   return ids * 100 + classes * 10 + tags;
 }
 
 function stripSupportedPseudos(selector: string, node: HtmlElementNode): string | undefined {
   let out = selector;
-  const pseudos = [...out.matchAll(/:([A-Za-z-]+)(?:\(([^)]*)\))?/g)];
+  const pseudos = pseudoSelectors(out).reverse();
   for (const match of pseudos) {
-    const name = match[1]!;
-    const arg = match[2]?.trim();
+    const name = match.name;
+    const arg = match.arg?.trim();
     if (name === "first-child") {
       if (elementIndex(node) !== 1) return undefined;
     } else if (name === "root") {
@@ -1026,9 +1025,115 @@ function stripSupportedPseudos(selector: string, node: HtmlElementNode): string 
     } else {
       return undefined;
     }
-    out = out.replace(match[0], "");
+    out = out.slice(0, match.start) + out.slice(match.end);
   }
   return out;
+}
+
+function simpleSelectorValues(selector: string, prefix: "." | "#"): string[] {
+  const values: string[] = [];
+  for (let index = 0; index < selector.length; index += 1) {
+    if (selector[index] !== prefix || isEscaped(selector, index)) continue;
+    const read = readCssIdentifier(selector, index + 1);
+    if (read.value) values.push(read.value);
+    index = read.end - 1;
+  }
+  return values;
+}
+
+function stripSimpleSelectors(selector: string): string {
+  let out = "";
+  for (let index = 0; index < selector.length; index += 1) {
+    const char = selector[index]!;
+    if ((char === "." || char === "#") && !isEscaped(selector, index)) {
+      index = readCssIdentifier(selector, index + 1).end - 1;
+      continue;
+    }
+    out += char;
+  }
+  return out;
+}
+
+function readCssIdentifier(input: string, start: number): { value: string; end: number } {
+  let value = "";
+  let index = start;
+  while (index < input.length) {
+    const char = input[index]!;
+    if (char === "\\") {
+      const escaped = readCssEscape(input, index);
+      value += escaped.value;
+      index = escaped.end;
+      continue;
+    }
+    if (char === "[") {
+      const close = input.indexOf("]", index + 1);
+      if (close === -1) break;
+      const body = input.slice(index + 1, close);
+      if (body.includes("=")) break;
+      value += input.slice(index, close + 1);
+      index = close + 1;
+      continue;
+    }
+    if (/[\s>+~.#(]/.test(char)) break;
+    value += char;
+    index += 1;
+  }
+  return { value, end: index };
+}
+
+function readCssEscape(input: string, start: number): { value: string; end: number } {
+  let index = start + 1;
+  const hex = /^[0-9a-fA-F]{1,6}/.exec(input.slice(index))?.[0];
+  if (hex) {
+    index += hex.length;
+    if (/\s/.test(input[index] ?? "")) index += 1;
+    return { value: String.fromCodePoint(Number.parseInt(hex, 16)), end: index };
+  }
+  if (index >= input.length) return { value: "", end: index };
+  return { value: input[index]!, end: index + 1 };
+}
+
+function isEscaped(input: string, index: number): boolean {
+  let slashCount = 0;
+  for (let cursor = index - 1; cursor >= 0 && input[cursor] === "\\"; cursor -= 1) slashCount += 1;
+  return slashCount % 2 === 1;
+}
+
+function pseudoSelectors(selector: string): Array<{ name: string; arg?: string; start: number; end: number }> {
+  const pseudos: Array<{ name: string; arg?: string; start: number; end: number }> = [];
+  for (let index = 0; index < selector.length; index += 1) {
+    if (selector[index] !== ":" || isEscaped(selector, index)) continue;
+    if (isInsideClassSelector(selector, index)) continue;
+    if (selector[index + 1] === ":") {
+      const read = readCssIdentifier(selector, index + 2);
+      if (read.value) pseudos.push({ name: `:${read.value}`, start: index, end: read.end });
+      index = read.end - 1;
+      continue;
+    }
+    const read = readCssIdentifier(selector, index + 1);
+    if (!read.value) continue;
+    let end = read.end;
+    let arg: string | undefined;
+    if (selector[end] === "(") {
+      const close = closingParenIndex(selector, end + 1);
+      if (close === -1) return pseudos;
+      arg = selector.slice(end + 1, close);
+      end = close + 1;
+    }
+    pseudos.push({ name: read.value, arg, start: index, end });
+    index = end - 1;
+  }
+  return pseudos;
+}
+
+function isInsideClassSelector(selector: string, index: number): boolean {
+  for (let cursor = index - 1; cursor >= 0; cursor -= 1) {
+    const char = selector[cursor]!;
+    if (isEscaped(selector, cursor)) continue;
+    if (char === ".") return true;
+    if (/[\s>+~#\[]/.test(char)) return false;
+  }
+  return false;
 }
 
 function matchesAttributes(node: HtmlElementNode, selector: string): boolean {
