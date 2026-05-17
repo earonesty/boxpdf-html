@@ -1,4 +1,5 @@
 import {
+  type BackgroundImage,
   hline,
   hstack,
   paragraph,
@@ -46,6 +47,7 @@ function renderBlock(node: StyledElement, options: HtmlToBoxpdfOptions, warnings
       padding: layoutPadding(node),
       gap: node.style.gap ?? 0,
       background: node.style.background,
+      backgroundImage: backgroundImage(node, options),
       border: border(node),
       borderSides: node.style.borderSides,
       borderRadius: node.style.borderRadius,
@@ -95,6 +97,7 @@ function renderFlex(node: StyledElement, options: HtmlToBoxpdfOptions, warnings:
     align: node.style.alignItems,
     justify: node.style.justifyContent,
     background: node.style.background,
+    backgroundImage: backgroundImage(node, options),
     border: border(node),
     borderSides: node.style.borderSides,
     borderRadius: node.style.borderRadius,
@@ -203,6 +206,7 @@ function renderTable(node: StyledElement, options: HtmlToBoxpdfOptions, warnings
             content: renderCellContent(cell, options, warnings),
             padding: layoutPadding(cell, 4),
             background: cell.style.background,
+            backgroundImage: backgroundImage(cell, options),
             border: border(cell),
             borderSides: cell.style.borderSides,
             borderRadius: cell.style.borderRadius,
@@ -304,6 +308,34 @@ function layoutPadding(node: StyledElement, fallback?: EdgesInput): EdgesInput |
   if (out.top === 0 && out.right === 0 && out.bottom === 0 && out.left === 0) return undefined;
   if (out.top === out.right && out.right === out.bottom && out.bottom === out.left) return out.top;
   return out;
+}
+
+function backgroundImage(node: StyledElement, options: HtmlToBoxpdfOptions): BackgroundImage | undefined {
+  if (!node.style.backgroundImageUrl || !options.resolveImage) return undefined;
+  const image = options.resolveImage({ url: node.style.backgroundImageUrl, baseUrl: options.baseUrl });
+  if (!image) return undefined;
+  const width = cssBoxWidth(node);
+  const height = cssBoxHeight(node);
+  if (width === undefined || height === undefined || width <= 0 || height <= 0) return undefined;
+  const sizing = node.style.backgroundSize ?? "auto";
+  const scale =
+    sizing === "cover"
+      ? Math.max(width / image.width, height / image.height)
+      : sizing === "contain"
+        ? Math.min(width / image.width, height / image.height)
+        : 1;
+  const imageWidth = image.width * scale;
+  const imageHeight = image.height * scale;
+  const x = node.style.backgroundPositionX ?? 0;
+  const y = node.style.backgroundPositionY ?? 0;
+  return {
+    image,
+    width: imageWidth,
+    height: imageHeight,
+    offsetX: (width - imageWidth) * x,
+    offsetY: (height - imageHeight) * y,
+    repeat: node.style.backgroundRepeat ?? "repeat"
+  };
 }
 
 function textOptions(node: StyledText, options: HtmlToBoxpdfOptions) {

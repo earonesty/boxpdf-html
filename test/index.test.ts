@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeAll } from "vitest";
-import { PDFDocument, StandardFonts, type PDFFont } from "pdf-lib";
+import { PDFDocument, StandardFonts, type PDFImage, type PDFFont } from "pdf-lib";
 import { fontFamily, htmlToBoxpdf, parseHtml } from "../src/index.js";
 
 let font: PDFFont;
@@ -328,6 +328,29 @@ c</p>`,
           ]
         }
       ]
+    });
+  });
+
+  it("maps CSS background images through the image resolver", () => {
+    const image = { width: 200, height: 100 } as PDFImage;
+    const result = htmlToBoxpdf(
+      `<style>.hero{width:100px;height:50px;background:#123 url("hero.png") center/cover no-repeat}</style><div class="hero">Hero</div>`,
+      {
+        font,
+        width: 320,
+        resolveImage: ({ url }) => (url === "hero.png" ? image : undefined)
+      }
+    );
+    const hero = result.nodes[0];
+    if (hero?.kind !== "vstack") throw new Error("expected hero");
+    expect(hero.style.background).toMatchObject({ r: 0.06666666666666667 });
+    expect(hero.style.backgroundImage).toMatchObject({
+      image,
+      width: 75,
+      height: 37.5,
+      offsetX: 0,
+      offsetY: 0,
+      repeat: "no-repeat"
     });
   });
 

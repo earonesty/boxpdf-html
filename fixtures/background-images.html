@@ -1,0 +1,48 @@
+<style>
+  @page { size: Letter; margin: 40pt; }
+  body { margin: 0; font-family: Helvetica, Arial, sans-serif; color: #111; font-size: 13px; }
+  .panel {
+    width: 430px;
+    padding: 14px 16px;
+    border: 1px solid #94a3b8;
+    background: #f8fafc;
+  }
+  h2 { margin: 0 0 10px 0; }
+  p { margin: 0 0 12px 0; line-height: 1.25; }
+  .hero {
+    width: 390px;
+    height: 125px;
+    padding: 14px 16px;
+    color: white;
+    background: #1e293b url("background-source.png") center / cover no-repeat;
+  }
+  .thumbs {
+    display: flex;
+    flex-direction: row;
+    gap: 12px;
+    margin-top: 12px;
+  }
+  .thumb {
+    width: 120px;
+    height: 70px;
+    background-color: #dbeafe;
+    background-image: url("background-source.png");
+    background-size: contain;
+    background-position: center;
+    background-repeat: no-repeat;
+  }
+  .tile {
+    background-size: auto;
+    background-position: left top;
+    background-repeat: repeat;
+  }
+</style>
+<div class="panel">
+  <h2>Background images</h2>
+  <p>Cover, contain, position, repeat, and shorthand color extraction should render behind content.</p>
+  <div class="hero">cover center / no-repeat</div>
+  <div class="thumbs">
+    <div class="thumb"></div>
+    <div class="thumb tile"></div>
+  </div>
+</div>

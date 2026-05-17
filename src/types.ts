@@ -1,11 +1,12 @@
 import type { BorderSides, EdgesInput, Node as BoxNode, Position, RGB } from "boxpdf";
-import type { PDFFont } from "pdf-lib";
+import type { PDFImage, PDFFont } from "pdf-lib";
 
 export interface HtmlToBoxpdfOptions {
   font: PDFFont;
   boldFont?: PDFFont;
   italicFont?: PDFFont;
   resolveFont?: HtmlFontResolver;
+  resolveImage?: HtmlImageResolver;
   baseUrl?: string;
   width?: number;
   defaultFontSize?: number;
@@ -23,6 +24,12 @@ export interface HtmlFontRequest {
 }
 
 export type HtmlFontResolver = (request: HtmlFontRequest) => PDFFont | undefined;
+export type HtmlImageResolver = (request: HtmlImageRequest) => PDFImage | undefined;
+
+export interface HtmlImageRequest {
+  url: string;
+  baseUrl?: string;
+}
 
 export interface HtmlTextNode {
   kind: "text";
@@ -54,6 +61,11 @@ export interface CssStyle {
   justifyContent: "start" | "center" | "end" | "between" | "around" | "evenly";
   color?: RGB;
   background?: RGB;
+  backgroundImageUrl?: string;
+  backgroundSize?: "auto" | "cover" | "contain";
+  backgroundRepeat?: "repeat" | "repeat-x" | "repeat-y" | "no-repeat";
+  backgroundPositionX?: number;
+  backgroundPositionY?: number;
   fontFamily?: string[];
   fontSize: number;
   fontWeight: FontWeight;

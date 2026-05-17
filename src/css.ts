@@ -104,8 +104,22 @@ function applyDeclaration(out: Partial<CssStyle>, property: string, rawValue: st
       out.color = parseColor(value);
       break;
     case "background":
+      parseBackground(out, rawValue);
+      break;
     case "background-color":
       out.background = parseColor(value);
+      break;
+    case "background-image":
+      out.backgroundImageUrl = parseBackgroundImageUrl(rawValue);
+      break;
+    case "background-size":
+      if (value === "auto" || value === "cover" || value === "contain") out.backgroundSize = value;
+      break;
+    case "background-repeat":
+      if (value === "repeat" || value === "repeat-x" || value === "repeat-y" || value === "no-repeat") out.backgroundRepeat = value;
+      break;
+    case "background-position":
+      parseBackgroundPosition(out, value);
       break;
     case "font-size":
       out.fontSize = parseLength(value, fontSize) ?? out.fontSize;
@@ -248,6 +262,54 @@ function parseTextDecoration(value: string): CssStyle["textDecorationLine"] | un
   if (value.includes("underline")) return "underline";
   if (value.includes("line-through")) return "line-through";
   return undefined;
+}
+
+function parseBackground(out: Partial<CssStyle>, value: string): void {
+  out.background = parseBackgroundColor(value) ?? out.background;
+  out.backgroundImageUrl = parseBackgroundImageUrl(value) ?? out.backgroundImageUrl;
+  const lower = value.toLowerCase();
+  if (/\bcover\b/.test(lower)) out.backgroundSize = "cover";
+  else if (/\bcontain\b/.test(lower)) out.backgroundSize = "contain";
+  if (/\bno-repeat\b/.test(lower)) out.backgroundRepeat = "no-repeat";
+  else if (/\brepeat-x\b/.test(lower)) out.backgroundRepeat = "repeat-x";
+  else if (/\brepeat-y\b/.test(lower)) out.backgroundRepeat = "repeat-y";
+  else if (/\brepeat\b/.test(lower)) out.backgroundRepeat = "repeat";
+  parseBackgroundPosition(out, lower.replace(/\/\s*(cover|contain|auto)\b/g, ""));
+}
+
+function parseBackgroundColor(value: string): CssStyle["background"] | undefined {
+  const withoutUrls = value.replace(/url\([^)]*\)/gi, " ");
+  const tokens = withoutUrls.match(/#[0-9a-f]{3,8}\b|rgba?\([^)]*\)|[a-zA-Z]+/g) ?? [];
+  for (const token of tokens) {
+    const color = parseColor(token);
+    if (color) return color;
+  }
+  return undefined;
+}
+
+function parseBackgroundImageUrl(value: string): string | undefined {
+  const match = /url\(\s*(?:"([^"]+)"|'([^']+)'|([^)]*?))\s*\)/i.exec(value);
+  return match ? (match[1] ?? match[2] ?? match[3])?.trim() : undefined;
+}
+
+function parseBackgroundPosition(out: Partial<CssStyle>, value: string): void {
+  const tokens = value
+    .split(/\s+/)
+    .map((token) => token.trim())
+    .filter(Boolean)
+    .filter((token) => !["url", "repeat", "repeat-x", "repeat-y", "no-repeat", "cover", "contain", "auto"].includes(token));
+  const normalized = tokens.join(" ");
+  if (!normalized) return;
+  if (/\bleft\b/.test(normalized)) out.backgroundPositionX = 0;
+  else if (/\bright\b/.test(normalized)) out.backgroundPositionX = 1;
+  else if (/\bcenter\b/.test(normalized)) out.backgroundPositionX = 0.5;
+  const percentX = /(^|\s)([0-9.]+)%/.exec(normalized);
+  if (percentX) out.backgroundPositionX = Number(percentX[2]) / 100;
+  if (/\btop\b/.test(normalized)) out.backgroundPositionY = 0;
+  else if (/\bbottom\b/.test(normalized)) out.backgroundPositionY = 1;
+  else if (/\bcenter\b/.test(normalized)) out.backgroundPositionY ??= 0.5;
+  const percents = [...normalized.matchAll(/([0-9.]+)%/g)];
+  if (percents[1]) out.backgroundPositionY = Number(percents[1][1]) / 100;
 }
 
 function parseFontFamily(value: string): string[] {
