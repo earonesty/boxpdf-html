@@ -48,7 +48,7 @@ function renderNode(node: StyledNode, options: HtmlToBoxpdfOptions, warnings: st
   return [renderBlock(node, options, warnings)];
 }
 
-function renderBlock(node: StyledElement, options: HtmlToBoxpdfOptions, warnings: string[]): BoxNode {
+function renderBlock(node: StyledElement, options: HtmlToBoxpdfOptions, warnings: string[], stretch = node.style.display === "block"): BoxNode {
   const children = renderBlockChildren(node, options, warnings);
   return vstack(
     {
@@ -69,7 +69,7 @@ function renderBlock(node: StyledElement, options: HtmlToBoxpdfOptions, warnings
       bottom: node.style.bottom,
       left: node.style.left,
       zIndex: node.style.zIndex,
-      align: node.style.display === "block" ? "stretch" : "start"
+      align: stretch ? "stretch" : "start"
     },
     ...children
   );
@@ -208,7 +208,7 @@ function flexChildrenWithJustification(
   if (!direction.startsWith("row") || justify !== "between" || children.length < 2) return { nodes: children, justify };
   const available = width ?? Number.POSITIVE_INFINITY;
   if (!Number.isFinite(available)) return { nodes: children, justify };
-  const measuredWidths = children.map((child) => measure(child, available).width);
+  const measuredWidths = children.map((child) => measure(child, Number.POSITIVE_INFINITY).width);
   const childWidth = measuredWidths.reduce((sum, width) => sum + width, 0);
   const spacerWidth = Math.max(0, (available - childWidth - gap * (children.length - 1)) / (children.length - 1));
   const nodes = children.map((child, index) => setFlexItemWidth(child, measuredWidths[index]! + (index === children.length - 1 ? 0 : spacerWidth)));
@@ -231,6 +231,7 @@ function renderFlexChild(node: StyledNode, options: HtmlToBoxpdfOptions, warning
     return rendered ? [rendered] : [];
   }
   if (!("text" in node) && isInlineContainer(node)) return [renderBlock(node, options, warnings)];
+  if (!("text" in node) && node.style.display === "block") return [renderBlock(node, options, warnings, false)];
   return renderNode(node, options, warnings);
 }
 

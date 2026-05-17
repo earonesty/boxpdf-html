@@ -77,7 +77,8 @@ function styleElement(
   applyAutoMargins(style, containingWidth);
   if (style.lineHeightScale !== undefined) style.lineHeight = style.fontSize * style.lineHeightScale;
   const inheritedForChildren = inherit(style);
-  const childContainingWidth = contentWidthForChildren(style, containingWidth);
+  const childContainingWidth =
+    parentDisplay === "flex" && style.width === undefined ? undefined : contentWidthForChildren(style, containingWidth);
   const children = node.children
     .map((child) => styleNode(child, rules, inheritedForChildren, childContainingWidth, unsupportedCss, style.display))
     .filter((child): child is StyledNode => child !== undefined);

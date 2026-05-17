@@ -114,6 +114,21 @@ c</p>`,
     expect(amount.style.shrink).toBe(0);
   });
 
+  it("does not pre-stretch auto-width block flex items before spacing them", () => {
+    const result = htmlToBoxpdf(
+      `<style>.row{display:flex;justify-content:space-between;width:300px}.title{display:block}.thumb{width:48px;height:48px}</style>
+       <div class="row"><div class="title"><strong>Acme Studio</strong><span>Tailwind</span></div><div class="thumb"></div></div>`,
+      { font, boldFont: bold, width: 500 }
+    );
+    const row = result.nodes[0];
+    if (row?.kind !== "hstack") throw new Error("expected flex row");
+    const title = row.children[0];
+    const thumb = row.children[1];
+    if (title?.kind !== "vstack" || thumb?.kind !== "vstack") throw new Error("expected flex items");
+    expect((title.style.width ?? 0) + (thumb.style.width ?? 0)).toBeLessThanOrEqual(row.style.width ?? 0);
+    expect(thumb.style.width).toBe(36);
+  });
+
   it("parses generated Tailwind utility values used by invoice-style HTML", () => {
     const result = htmlToBoxpdf(
       `<style>
