@@ -27,6 +27,7 @@
     "visual:check": "pnpm run visual:check:boxpdf",
     "visual:check:boxpdf": "pnpm run build && node scripts/check-boxpdf-baselines.mjs",
     "visual:check:prince": "pnpm run visual:regenerate && git diff --exit-code -- artifacts/*/*.png",
+    "tailwind:fixture": "node scripts/build-tailwind-fixture.mjs",
     "profile:render": "pnpm run build && node scripts/render-boxpdf-profile.mjs",
     "prepublishOnly": "pnpm run typecheck && pnpm run test && pnpm run build && node scripts/prepare-publish.mjs --verify",
     "pack:release": "pnpm run typecheck && pnpm run test && pnpm run build && node scripts/prepare-publish.mjs --pack",
@@ -58,8 +59,10 @@
     "parse5": "^8.0.0"
   },
   "devDependencies": {
+    "@tailwindcss/cli": "^4.3.0",
     "@types/node": "^22.19.19",
     "pdf-lib": "^1.17.1",
+    "tailwindcss": "^4.3.0",
     "tsup": "^8.5.1",
     "typescript": "^5.9.3",
     "vitest": "^4.1.6"

@@ -41,6 +41,8 @@ export function parseLengthPercentage(value: string | undefined, fontSize: numbe
     return length === undefined ? undefined : { length, percent: 0 };
   }
   const body = normalized.slice(5, -1).trim();
+  const product = parseCalcProduct(body, fontSize);
+  if (product) return product;
   const tokens = body.replace(/([+-])/g, " $1 ").trim().split(/\s+/);
   let sign = 1;
   let length = 0;
@@ -74,7 +76,20 @@ export function parseLineHeight(value: string | undefined, fontSize: number): nu
   if (normalized === "normal") return undefined;
   const unitless = /^([0-9.]+)$/.exec(normalized);
   if (unitless) return Number(unitless[1]) * fontSize;
+  if (isCalc(normalized)) {
+    const number = parseCalcNumber(normalized.slice(5, -1).trim());
+    if (number !== undefined) return number * fontSize;
+  }
   return parseLength(normalized, fontSize);
+}
+
+export function parseLineHeightScale(value: string | undefined): number | undefined {
+  if (!value) return undefined;
+  const normalized = value.trim().toLowerCase();
+  const unitless = /^([0-9.]+)$/.exec(normalized);
+  if (unitless) return Number(unitless[1]);
+  if (!isCalc(normalized)) return undefined;
+  return parseCalcNumber(normalized.slice(5, -1).trim());
 }
 
 function isCalc(value: string): boolean {
@@ -100,4 +115,40 @@ function parseSimpleLength(value: string, fontSize: number): number | undefined 
   if (unit === "vw") return (amount / 100) * VIEWPORT_WIDTH;
   if (unit === "vh") return (amount / 100) * VIEWPORT_HEIGHT;
   return amount * 0.75;
+}
+
+function parseCalcProduct(value: string, fontSize: number): LengthPercentage | undefined {
+  const multiplied = /^(.+?)\s*\*\s*(-?[0-9.]+)$/.exec(value) ?? /^(-?[0-9.]+)\s*\*\s*(.+)$/.exec(value);
+  if (multiplied) {
+    const firstNumber = Number(multiplied[1]);
+    const factor = Number.isFinite(firstNumber) ? firstNumber : Number(multiplied[2]);
+    const valueToken = Number.isFinite(firstNumber) ? multiplied[2]!.trim() : multiplied[1]!.trim();
+    const parsed = parseLengthPercentage(valueToken, fontSize);
+    return parsed && Number.isFinite(factor) ? { length: parsed.length * factor, percent: parsed.percent * factor } : undefined;
+  }
+  const divided = /^(.+?)\s*\/\s*(-?[0-9.]+)$/.exec(value);
+  if (divided) {
+    const divisor = Number(divided[2]);
+    if (!Number.isFinite(divisor) || divisor === 0) return undefined;
+    const parsed = parseLengthPercentage(divided[1]!.trim(), fontSize);
+    return parsed ? { length: parsed.length / divisor, percent: parsed.percent / divisor } : undefined;
+  }
+  return undefined;
+}
+
+function parseCalcNumber(value: string): number | undefined {
+  const divided = /^(-?[0-9.]+)\s*\/\s*(-?[0-9.]+)$/.exec(value);
+  if (divided) {
+    const left = Number(divided[1]);
+    const right = Number(divided[2]);
+    return Number.isFinite(left) && Number.isFinite(right) && right !== 0 ? left / right : undefined;
+  }
+  const multiplied = /^(-?[0-9.]+)\s*\*\s*(-?[0-9.]+)$/.exec(value);
+  if (multiplied) {
+    const left = Number(multiplied[1]);
+    const right = Number(multiplied[2]);
+    return Number.isFinite(left) && Number.isFinite(right) ? left * right : undefined;
+  }
+  const number = Number(value);
+  return Number.isFinite(number) ? number : undefined;
 }

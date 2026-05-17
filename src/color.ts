@@ -29,6 +29,8 @@ export function parseColor(value: string | undefined): RGB | undefined {
   if (rgb) return rgb;
   const hsl = parseHslFunction(resolved);
   if (hsl) return hsl;
+  const oklch = parseOklchFunction(resolved);
+  if (oklch) return oklch;
   return undefined;
 }
 
@@ -79,6 +81,51 @@ function parseHue(value: string): number | undefined {
   if (unit === "turn") return amount * 360;
   if (unit === "rad") return amount * (180 / Math.PI);
   return amount;
+}
+
+function parseOklchFunction(value: string): RGB | undefined {
+  const match = /^oklch\(\s*(.+)\s*\)$/.exec(value);
+  if (!match) return undefined;
+  const body = match[1]!.split("/")[0]!.trim();
+  const parts = body.split(/\s+/);
+  if (parts.length < 3) return undefined;
+  const lightness = parseOklchLightness(parts[0]!);
+  const chroma = Number(parts[1]);
+  const hue = parseHue(parts[2]!);
+  if (lightness === undefined || !Number.isFinite(chroma) || hue === undefined) return undefined;
+  return oklchToRgb(lightness, chroma, hue);
+}
+
+function parseOklchLightness(value: string): number | undefined {
+  const percent = /^(-?[0-9.]+)%$/.exec(value);
+  if (percent) {
+    const amount = Number(percent[1]);
+    return Number.isFinite(amount) ? clamp01(amount / 100) : undefined;
+  }
+  const amount = Number(value);
+  return Number.isFinite(amount) ? clamp01(amount) : undefined;
+}
+
+function oklchToRgb(lightness: number, chroma: number, hue: number): RGB {
+  const radians = (hue * Math.PI) / 180;
+  const a = chroma * Math.cos(radians);
+  const b = chroma * Math.sin(radians);
+  const lPrime = lightness + 0.3963377774 * a + 0.2158037573 * b;
+  const mPrime = lightness - 0.1055613458 * a - 0.0638541728 * b;
+  const sPrime = lightness - 0.0894841775 * a - 1.291485548 * b;
+  const l = lPrime ** 3;
+  const m = mPrime ** 3;
+  const s = sPrime ** 3;
+  return {
+    r: linearSrgbToRgb(4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s),
+    g: linearSrgbToRgb(-1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s),
+    b: linearSrgbToRgb(-0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s)
+  };
+}
+
+function linearSrgbToRgb(value: number): number {
+  const converted = value <= 0.0031308 ? 12.92 * value : 1.055 * value ** (1 / 2.4) - 0.055;
+  return clamp01(converted);
 }
 
 function parsePercentChannel(value: string): number | undefined {

@@ -85,6 +85,51 @@ c</p>`,
     });
   });
 
+  it("lets block flex containers fill the available width", () => {
+    const result = htmlToBoxpdf(
+      `<style>.wrap{padding:32px}.row{display:flex;justify-content:space-between}</style>
+       <div class="wrap"><div class="row"><span>Total</span><span>$1,250.00</span></div></div>`,
+      { font, width: 300 }
+    );
+    const wrap = result.nodes[0];
+    if (wrap?.kind !== "vstack") throw new Error("expected wrapper");
+    const row = wrap.children[0];
+    if (row?.kind !== "hstack") throw new Error("expected flex row");
+    expect(row.style.width).toBe(252);
+    expect(row.children).toHaveLength(2);
+    expect(row.children[0]).toMatchObject({ kind: "vstack", style: { width: expect.any(Number) } });
+  });
+
+  it("parses generated Tailwind utility values used by invoice-style HTML", () => {
+    const result = htmlToBoxpdf(
+      `<style>
+        :root{--spacing:.25rem;--color-gray-900:oklch(21% .034 264.665);--text-2xl:1.5rem;--text-2xl--line-height:calc(2 / 1.5);--font-weight-bold:700}
+        h1{font-size:inherit;font-weight:inherit}
+        .p-8{padding:calc(var(--spacing) * 8)}
+        .text-2xl{font-size:var(--text-2xl);line-height:var(--text-2xl--line-height)}
+        .font-bold{font-weight:var(--font-weight-bold)}
+        .text-gray-900{color:var(--color-gray-900)}
+      </style>
+      <div class="p-8"><h1 class="text-2xl font-bold text-gray-900">Invoice #1234</h1></div>`,
+      { font, boldFont: bold, width: 300 }
+    );
+    const wrap = result.nodes[0];
+    if (wrap?.kind !== "vstack") throw new Error("expected wrapper");
+    expect(wrap.style.padding).toBe(24);
+    const heading = wrap.children[0];
+    if (heading?.kind !== "vstack") throw new Error("expected heading");
+    const paragraph = heading.children[0];
+    if (paragraph?.kind !== "paragraph") throw new Error("expected paragraph");
+    const firstRun = paragraph.runs[0];
+    if (!("text" in firstRun)) throw new Error("expected text run");
+    expect(firstRun.style.size).toBe(18);
+    expect(firstRun.style.lineHeight).toBe(24);
+    expect(firstRun.style.font).toBe(bold);
+    expect(firstRun.style.color?.r).toBeLessThan(0.2);
+    expect(firstRun.style.color?.g).toBeLessThan(0.25);
+    expect(firstRun.style.color?.b).toBeLessThan(0.35);
+  });
+
   it("applies descendant selectors", () => {
     const result = htmlToBoxpdf(
       `<style>.row{display:flex;flex-direction:row;gap:8px}.row .muted{color:#666}</style>
@@ -94,8 +139,10 @@ c</p>`,
     const row = result.nodes[0];
     if (row?.kind !== "hstack") throw new Error("expected row");
     const second = row.children[1];
-    if (second?.kind !== "paragraph") throw new Error("expected paragraph");
-    expect(second.runs[0]).toMatchObject({ style: { color: { r: 0.4, g: 0.4, b: 0.4 } } });
+    if (second?.kind !== "vstack") throw new Error("expected flex item");
+    const paragraph = second.children[0];
+    if (paragraph?.kind !== "paragraph") throw new Error("expected paragraph");
+    expect(paragraph.runs[0]).toMatchObject({ style: { color: { r: 0.4, g: 0.4, b: 0.4 } } });
   });
 
   it("cascades important declarations above inline normal declarations", () => {
@@ -542,8 +589,8 @@ c</p>`,
     if (rowNode?.kind !== "hstack" || columnNode?.kind !== "vstack") throw new Error("expected flex boxes");
     const rowFirst = rowNode.children[0];
     const columnFirst = columnNode.children[0];
-    if (rowFirst?.kind !== "paragraph" || columnFirst?.kind !== "vstack") throw new Error("expected rendered children");
-    expect(rowFirst.runs.map((item) => ("text" in item ? item.text : "")).join("")).toBe("B");
+    if (rowFirst?.kind !== "vstack" || columnFirst?.kind !== "vstack") throw new Error("expected rendered children");
+    expect(rowFirst.children[0]).toMatchObject({ kind: "paragraph", runs: [{ text: "B" }] });
     expect(columnFirst.children[0]).toMatchObject({ kind: "paragraph", runs: [{ text: "B" }] });
   });
 
@@ -562,8 +609,8 @@ c</p>`,
     if (flexNode?.kind !== "hstack" || gridNode?.kind !== "vstack") throw new Error("expected flex and grid boxes");
     const firstFlex = flexNode.children[0];
     const firstGridRow = gridNode.children[0];
-    if (firstFlex?.kind !== "paragraph" || firstGridRow?.kind !== "hstack") throw new Error("expected rendered children");
-    expect(firstFlex.runs.map((item) => ("text" in item ? item.text : "")).join("")).toBe("C");
+    if (firstFlex?.kind !== "vstack" || firstGridRow?.kind !== "hstack") throw new Error("expected rendered children");
+    expect(firstFlex.children[0]).toMatchObject({ kind: "paragraph", runs: [{ text: "C" }] });
     expect(firstGridRow.children[0]).toMatchObject({ kind: "vstack", children: [{ kind: "paragraph", runs: [{ text: "C" }] }] });
   });
 
@@ -594,7 +641,7 @@ c</p>`,
       width: 300
     });
     expect(result.nodes[0]).toMatchObject({ kind: "vstack", style: { width: 120, height: 67.5 } });
-    expect(result.nodes[1]).toMatchObject({ kind: "vstack", style: { width: 75, height: 37.5 } });
+    expect(result.nodes[1]).toMatchObject({ kind: "vstack", style: { width: 300, height: 37.5 } });
   });
 
   it("selects image candidates from srcset and picture sources", () => {

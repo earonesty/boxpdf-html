@@ -1,6 +1,6 @@
 import { generate, parse as parseCss, walk } from "css-tree";
 import { parseColor } from "./color.js";
-import { parseLength, parseLengthPercentage, parseLineHeight, parsePercentage } from "./units.js";
+import { parseLength, parseLengthPercentage, parseLineHeight, parseLineHeightScale, parsePercentage } from "./units.js";
 import type { CssDeclaration, CssRule, CssStyle, Display, GridTrack, HtmlElementNode } from "./types.js";
 import type { Border, EdgesInput } from "boxpdf";
 
@@ -305,8 +305,16 @@ function applyDeclaration(out: Partial<CssStyle>, property: string, rawValue: st
       out.fontStyle = value === "italic" ? "italic" : "normal";
       break;
     case "line-height":
-      if (/^[0-9.]+$/.test(value)) out.lineHeightScale = Number(value);
-      else out.lineHeight = parseLineHeight(value, fontSize);
+      {
+        const scale = parseLineHeightScale(value);
+        if (scale !== undefined) {
+          out.lineHeightScale = scale;
+          out.lineHeight = undefined;
+        } else {
+          out.lineHeight = parseLineHeight(value, fontSize);
+          out.lineHeightScale = undefined;
+        }
+      }
       break;
     case "white-space":
       if (value === "normal" || value === "nowrap" || value === "pre" || value === "pre-wrap" || value === "pre-line") {

@@ -164,15 +164,22 @@ function attachFloatsToNode(node: BoxNode, floats: ParagraphFloat[]): { node: Bo
 function renderFlex(node: StyledElement, options: HtmlToBoxpdfOptions, warnings: string[]): BoxNode {
   const ordered = orderedChildren(node.children);
   const sourceChildren = node.style.flexDirection.endsWith("-reverse") ? [...ordered].reverse() : ordered;
-  const children = sourceChildren.flatMap((child) => renderFlexChild(child, options, warnings)).map(defaultFlexItem);
+  const width = cssBoxWidth(node);
+  const children = flexChildrenWithJustification(
+    sourceChildren.flatMap((child) => renderFlexChild(child, options, warnings)).map(defaultFlexItem),
+    node.style.justifyContent,
+    node.style.flexDirection,
+    width,
+    node.style.gap ?? 0
+  );
   const style = {
-    width: cssBoxWidth(node),
+    width,
     height: cssBoxHeight(node),
     margin: node.style.margin,
     padding: layoutPadding(node),
     gap: node.style.gap ?? 0,
     align: node.style.alignItems,
-    justify: node.style.justifyContent,
+    justify: children.justify,
     background: node.style.background,
     backgroundImage: backgroundImage(node, options),
     border: border(node),
@@ -186,7 +193,29 @@ function renderFlex(node: StyledElement, options: HtmlToBoxpdfOptions, warnings:
     left: node.style.left,
     zIndex: node.style.zIndex
   };
-  return node.style.flexDirection.startsWith("row") ? hstack(style, ...children) : vstack(style, ...children);
+  return node.style.flexDirection.startsWith("row") ? hstack(style, ...children.nodes) : vstack(style, ...children.nodes);
+}
+
+function flexChildrenWithJustification(
+  children: BoxNode[],
+  justify: StyledElement["style"]["justifyContent"],
+  direction: StyledElement["style"]["flexDirection"],
+  width: number | undefined,
+  gap: number
+): { nodes: BoxNode[]; justify: StyledElement["style"]["justifyContent"] } {
+  if (!direction.startsWith("row") || justify !== "between" || children.length < 2) return { nodes: children, justify };
+  const available = width ?? Number.POSITIVE_INFINITY;
+  if (!Number.isFinite(available)) return { nodes: children, justify };
+  const childWidth = children.reduce((sum, child) => sum + measure(child, available).width, 0);
+  const spacerWidth = Math.max(0, (available - childWidth - gap * (children.length - 1)) / (children.length - 1));
+  const nodes = children.map((child, index) => (index === children.length - 1 ? child : addWidth(child, spacerWidth)));
+  return { nodes, justify: "start" };
+}
+
+function addWidth(node: BoxNode, extra: number): BoxNode {
+  if (node.kind !== "vstack" && node.kind !== "hstack") return node;
+  const width = measure(node, Number.POSITIVE_INFINITY).width + extra;
+  return { ...node, style: { ...node.style, width } };
 }
 
 function renderFlexChild(node: StyledNode, options: HtmlToBoxpdfOptions, warnings: string[]): BoxNode[] {
@@ -194,7 +223,7 @@ function renderFlexChild(node: StyledNode, options: HtmlToBoxpdfOptions, warning
     const rendered = renderImageForLayout(node, options, warnings);
     return rendered ? [rendered] : [];
   }
-  if (!("text" in node) && isInlineContainer(node) && hasBoxStyling(node)) return [renderBlock(node, options, warnings)];
+  if (!("text" in node) && isInlineContainer(node)) return [renderBlock(node, options, warnings)];
   return renderNode(node, options, warnings);
 }
 

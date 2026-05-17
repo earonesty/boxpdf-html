@@ -23,12 +23,13 @@ function styleNode(
   rules: CssRule[],
   inherited: CssStyle,
   containingWidth?: number,
-  unsupportedCss?: UnsupportedCssSink
+  unsupportedCss?: UnsupportedCssSink,
+  parentDisplay?: CssStyle["display"]
 ): StyledNode | undefined {
   if (node.kind === "text") {
     return { node, style: inherited, text: transformText(normalizeWhitespace(node.value, inherited.whiteSpace), inherited.textTransform) };
   }
-  return styleElement(node, rules, inherited, containingWidth, unsupportedCss);
+  return styleElement(node, rules, inherited, containingWidth, unsupportedCss, parentDisplay);
 }
 
 function styleElement(
@@ -36,7 +37,8 @@ function styleElement(
   rules: CssRule[],
   inherited: CssStyle,
   containingWidth?: number,
-  unsupportedCss?: UnsupportedCssSink
+  unsupportedCss?: UnsupportedCssSink,
+  parentDisplay?: CssStyle["display"]
 ): StyledElement {
   const tagDefaults = defaultsForTag(node.tag, inherited);
   const ruleDeclarations = ruleDeclarationsFor(node, rules, tagDefaults.fontSize, tagDefaults.customProperties, unsupportedCss);
@@ -54,7 +56,15 @@ function styleElement(
   if (style.widthCalc !== undefined && containingWidth !== undefined) style.width = containingWidth * style.widthCalc.percent + style.widthCalc.length;
   if (style.minWidthCalc !== undefined && containingWidth !== undefined) style.minWidth = containingWidth * style.minWidthCalc.percent + style.minWidthCalc.length;
   if (style.maxWidthCalc !== undefined && containingWidth !== undefined) style.maxWidth = containingWidth * style.maxWidthCalc.percent + style.maxWidthCalc.length;
-  if (style.display === "grid" && style.width === undefined && containingWidth !== undefined) style.width = containingWidth;
+  if (
+    (style.display === "block" || style.display === "flex" || style.display === "grid") &&
+    parentDisplay !== "flex" &&
+    parentDisplay !== "grid" &&
+    style.width === undefined &&
+    containingWidth !== undefined
+  ) {
+    style.width = autoContentWidth(style, containingWidth);
+  }
   if (node.tag === "img") {
     style.width ??= parseDimensionAttr(node.attrs.width);
     style.height ??= parseDimensionAttr(node.attrs.height);
@@ -69,7 +79,7 @@ function styleElement(
   const inheritedForChildren = inherit(style);
   const childContainingWidth = contentWidthForChildren(style, containingWidth);
   const children = node.children
-    .map((child) => styleNode(child, rules, inheritedForChildren, childContainingWidth, unsupportedCss))
+    .map((child) => styleNode(child, rules, inheritedForChildren, childContainingWidth, unsupportedCss, style.display))
     .filter((child): child is StyledNode => child !== undefined);
   return { node, style, children };
 }
@@ -250,6 +260,13 @@ function mergeStyles(...styles: Array<Partial<CssStyle>>): CssStyle {
 function contentWidthForChildren(style: CssStyle, containingWidth: number | undefined): number | undefined {
   if (style.width !== undefined) return contentWidth(style);
   if (containingWidth === undefined) return undefined;
+  const padding = edges(style.padding);
+  const borders = borderWidths(style);
+  return Math.max(0, containingWidth - padding.left - padding.right - borders.left - borders.right);
+}
+
+function autoContentWidth(style: CssStyle, containingWidth: number): number {
+  if (style.boxSizing === "border-box") return containingWidth;
   const padding = edges(style.padding);
   const borders = borderWidths(style);
   return Math.max(0, containingWidth - padding.left - padding.right - borders.left - borders.right);
