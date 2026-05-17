@@ -97,7 +97,10 @@ function defaultsForTag(tag: string, inherited: CssStyle): CssStyle {
     right: undefined,
     bottom: undefined,
     left: undefined,
-    zIndex: undefined
+    zIndex: undefined,
+    columnGap: undefined,
+    rowGap: undefined,
+    gridTemplateColumns: undefined
   };
   if (tag === "strong" || tag === "b" || tag === "th") style.fontWeight = "bold";
   if (tag === "em" || tag === "i") style.fontStyle = "italic";
@@ -166,7 +169,10 @@ function inherit(style: CssStyle): CssStyle {
     right: undefined,
     bottom: undefined,
     left: undefined,
-    zIndex: undefined
+    zIndex: undefined,
+    columnGap: undefined,
+    rowGap: undefined,
+    gridTemplateColumns: undefined
   };
 }
 

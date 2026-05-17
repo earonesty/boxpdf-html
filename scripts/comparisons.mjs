@@ -6,6 +6,7 @@ export const comparisons = [
   ["fixtures/box-sizing.html", "artifacts/box-sizing"],
   ["fixtures/css-basics.html", "artifacts/css-basics"],
   ["fixtures/floats.html", "artifacts/floats"],
+  ["fixtures/grid.html", "artifacts/grid"],
   ["fixtures/important-cascade.html", "artifacts/important-cascade"],
   ["fixtures/inline-whitespace.html", "artifacts/inline-whitespace"],
   ["fixtures/lists.html", "artifacts/lists"],

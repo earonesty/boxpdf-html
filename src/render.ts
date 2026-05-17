@@ -5,6 +5,7 @@ import {
   image as boxImage,
   imageFit,
   inlineNode,
+  measure,
   paragraph,
   type ParagraphFloat,
   run,
@@ -15,7 +16,7 @@ import {
   type ParagraphItem,
   type TextRunStyle
 } from "boxpdf";
-import type { HtmlToBoxpdfOptions, RenderResult, StyledElement, StyledNode, StyledText } from "./types.js";
+import type { GridTrack, HtmlToBoxpdfOptions, RenderResult, StyledElement, StyledNode, StyledText } from "./types.js";
 import type { EdgesInput } from "boxpdf";
 
 export function renderStyledTree(root: StyledElement, options: HtmlToBoxpdfOptions): RenderResult {
@@ -38,6 +39,7 @@ function renderNode(node: StyledNode, options: HtmlToBoxpdfOptions, warnings: st
   if (node.node.tag === "hr") return [hline({ color: node.style.borderColor ?? { r: 0, g: 0, b: 0 }, thickness: node.style.borderWidth ?? 1 })];
   if (node.node.tag === "ul" || node.node.tag === "ol") return [renderList(node, options, warnings)];
   if (node.node.tag === "table") return renderTable(node, options, warnings);
+  if (node.style.display === "grid") return [renderGrid(node, options, warnings)];
   if (node.style.display === "flex") return [renderFlex(node, options, warnings)];
   if (node.style.display === "inline" || node.style.display === "inline-block") {
     return renderInlineGroup(node, options, warnings);
@@ -172,6 +174,89 @@ function renderFlex(node: StyledElement, options: HtmlToBoxpdfOptions, warnings:
     zIndex: node.style.zIndex
   };
   return node.style.flexDirection === "row" ? hstack(style, ...children) : vstack(style, ...children);
+}
+
+function renderGrid(node: StyledElement, options: HtmlToBoxpdfOptions, warnings: string[]): BoxNode {
+  const children = node.children.filter(hasRenderedContent).flatMap((child) => renderNode(child, options, warnings));
+  const gridWidth = contentWidth(node) ?? options.width;
+  const tracks = resolveGridTracks(node.style.gridTemplateColumns, gridWidth, node.style.columnGap ?? node.style.gap ?? 0);
+  if (tracks.length === 0) return renderBlock(node, options, warnings);
+  const rows: BoxNode[] = [];
+  for (let index = 0; index < children.length; index += tracks.length) {
+    const rowChildren = children
+      .slice(index, index + tracks.length)
+      .map((child, childIndex) => constrainGridItem(child, tracks[childIndex] ?? tracks[tracks.length - 1]!));
+    rows.push(hstack({ gap: node.style.columnGap ?? node.style.gap ?? 0, align: node.style.alignItems }, ...stretchGridRow(rowChildren, tracks)));
+  }
+  return vstack(
+    {
+      width: cssBoxWidth(node),
+      height: cssBoxHeight(node),
+      margin: node.style.margin,
+      padding: layoutPadding(node),
+      gap: node.style.rowGap ?? node.style.gap ?? 0,
+      background: node.style.background,
+      backgroundImage: backgroundImage(node, options),
+      border: border(node),
+      borderSides: node.style.borderSides,
+      borderRadius: node.style.borderRadius,
+      position: node.style.position,
+      top: node.style.top,
+      right: node.style.right,
+      bottom: node.style.bottom,
+      left: node.style.left,
+      zIndex: node.style.zIndex
+    },
+    ...rows
+  );
+}
+
+function hasRenderedContent(node: StyledNode): boolean {
+  if ("text" in node) return node.text.trim().length > 0;
+  return node.style.display !== "none";
+}
+
+function resolveGridTracks(tracks: GridTrack[] | undefined, width: number | undefined, gap: number): number[] {
+  if (!tracks || tracks.length === 0) {
+    return width === undefined ? [] : [width];
+  }
+  const available = width === undefined ? undefined : Math.max(0, width - gap * Math.max(0, tracks.length - 1));
+  const fixed = tracks.reduce((sum, track) => {
+    if (track.kind === "length") return sum + track.value;
+    if (track.kind === "percent" && available !== undefined) return sum + available * track.value;
+    return sum;
+  }, 0);
+  const fr = tracks.reduce((sum, track) => sum + (track.kind === "fr" ? track.value : 0), 0);
+  const frUnit = available === undefined || fr === 0 ? 0 : Math.max(0, available - fixed) / fr;
+  return tracks.map((track) => {
+    if (track.kind === "length") return track.value;
+    if (track.kind === "percent" && available !== undefined) return available * track.value;
+    return frUnit * track.value;
+  });
+}
+
+function constrainGridItem(node: BoxNode, width: number): BoxNode {
+  if (node.kind === "vstack" || node.kind === "hstack") {
+    return { ...node, style: { ...node.style, width: node.style.width ?? width, shrink: node.style.shrink ?? 1 } };
+  }
+  if (node.kind === "paragraph") {
+    return { ...node, props: { ...node.props, width: node.props.width ?? width } };
+  }
+  if (node.kind === "text") {
+    return { ...node, props: { ...node.props, width: node.props.width ?? width, shrink: node.props.shrink ?? 1 } };
+  }
+  return vstack({ width, shrink: 1 }, node);
+}
+
+function stretchGridRow(nodes: BoxNode[], tracks: number[]): BoxNode[] {
+  const heights = nodes.map((node, index) => measure(node, tracks[index] ?? tracks[tracks.length - 1] ?? Number.POSITIVE_INFINITY).height);
+  const rowHeight = Math.max(0, ...heights);
+  return nodes.map((node, index) => {
+    if (node.kind === "vstack" || node.kind === "hstack") {
+      return { ...node, style: { ...node.style, height: node.style.height ?? rowHeight } };
+    }
+    return vstack({ width: tracks[index], height: rowHeight }, node);
+  });
 }
 
 function defaultFlexItem(node: BoxNode): BoxNode {

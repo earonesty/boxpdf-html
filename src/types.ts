@@ -52,7 +52,8 @@ export interface ParsedHtml {
   stylesheets: string[];
 }
 
-export type Display = "block" | "inline" | "inline-block" | "flex" | "none";
+export type Display = "block" | "inline" | "inline-block" | "flex" | "grid" | "none";
+export type GridTrack = { kind: "length"; value: number } | { kind: "percent"; value: number } | { kind: "fr"; value: number };
 
 export interface CssStyle {
   display: Display;
@@ -96,6 +97,9 @@ export interface CssStyle {
   listStyleType?: "disc" | "decimal" | "none";
   borderCollapse?: "separate" | "collapse";
   gap?: number;
+  columnGap?: number;
+  rowGap?: number;
+  gridTemplateColumns?: GridTrack[];
   position?: Position;
   top?: number;
   right?: number;

@@ -290,6 +290,22 @@ c</p>`,
     expect(inline.node.kind).toBe("imageBox");
   });
 
+  it("maps simple CSS grids to row hstacks", () => {
+    const result = htmlToBoxpdf(
+      `<style>.grid{display:grid;grid-template-columns:1fr 2fr 60px;column-gap:10px;row-gap:8px;width:300px}.item{padding:4px}</style>
+       <div class="grid"><div class="item">A</div><div class="item">B</div><div class="item">C</div><div class="item">D</div></div>`,
+      { font, width: 320 }
+    );
+    const grid = result.nodes[0];
+    if (grid?.kind !== "vstack") throw new Error("expected grid vstack");
+    expect(grid.gap).toBe(6);
+    expect(grid.children).toHaveLength(2);
+    const firstRow = grid.children[0];
+    if (firstRow?.kind !== "hstack") throw new Error("expected row hstack");
+    expect(firstRow.gap).toBe(7.5);
+    expect(firstRow.children.map((child) => (child.kind === "vstack" || child.kind === "hstack" ? child.style.width : undefined))).toEqual([55, 110, 45]);
+  });
+
   it("resolves percentage widths against parent content width", () => {
     const result = htmlToBoxpdf(
       `<style>.panel{width:300px;padding:10px}table{width:100%}</style>

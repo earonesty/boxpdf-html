@@ -1,7 +1,7 @@
 import { generate, parse as parseCss, walk } from "css-tree";
 import { parseColor } from "./color.js";
 import { parseLength, parseLineHeight, parsePercentage } from "./units.js";
-import type { CssRule, CssStyle, Display, HtmlElementNode } from "./types.js";
+import type { CssRule, CssStyle, Display, GridTrack, HtmlElementNode } from "./types.js";
 import type { Border, EdgesInput } from "boxpdf";
 
 type CssNode = { type: string; [key: string]: unknown };
@@ -80,7 +80,8 @@ function applyDeclaration(out: Partial<CssStyle>, property: string, rawValue: st
   const value = rawValue.trim().toLowerCase();
   switch (property.trim().toLowerCase()) {
     case "display":
-      if (["block", "inline", "inline-block", "flex", "none"].includes(value)) out.display = value as Display;
+      if (["block", "inline", "inline-block", "flex", "grid", "none"].includes(value)) out.display = value as Display;
+      else if (value === "inline-grid") out.display = "grid";
       break;
     case "float":
       if (value === "none" || value === "left" || value === "right") out.float = value;
@@ -227,6 +228,17 @@ function applyDeclaration(out: Partial<CssStyle>, property: string, rawValue: st
     case "gap":
       out.gap = parseLength(value, fontSize);
       break;
+    case "column-gap":
+    case "grid-column-gap":
+      out.columnGap = parseLength(value, fontSize);
+      break;
+    case "row-gap":
+    case "grid-row-gap":
+      out.rowGap = parseLength(value, fontSize);
+      break;
+    case "grid-template-columns":
+      out.gridTemplateColumns = parseGridTemplateColumns(value, fontSize);
+      break;
     case "border":
       parseBorder(out, value, fontSize);
       break;
@@ -261,6 +273,52 @@ function applyDeclaration(out: Partial<CssStyle>, property: string, rawValue: st
       if (value === "collapse" || value === "separate") out.borderCollapse = value;
       break;
   }
+}
+
+function parseGridTemplateColumns(value: string, fontSize: number): GridTrack[] | undefined {
+  const expanded = expandGridRepeats(value);
+  const tracks = gridTrackTokens(expanded).map((token): GridTrack | undefined => {
+    if (token === "auto" || token === "min-content" || token === "max-content") return { kind: "fr", value: 1 };
+    const fr = /^([0-9.]+)fr$/.exec(token);
+    if (fr) {
+      const amount = Number(fr[1]);
+      return Number.isFinite(amount) && amount > 0 ? { kind: "fr", value: amount } : undefined;
+    }
+    const percent = parsePercentage(token);
+    if (percent !== undefined) return { kind: "percent", value: percent };
+    const minmax = /^minmax\([^,]+,\s*([^)]+)\)$/.exec(token);
+    if (minmax) return parseGridTemplateColumns(minmax[1]!, fontSize)?.[0];
+    const length = parseLength(token, fontSize);
+    return length === undefined ? undefined : { kind: "length", value: length };
+  });
+  if (tracks.length === 0 || tracks.some((track) => track === undefined)) return undefined;
+  return tracks as GridTrack[];
+}
+
+function expandGridRepeats(value: string): string {
+  return value.replace(/repeat\(\s*(\d+)\s*,\s*([^)]+)\)/g, (_match, countRaw: string, repeated: string) => {
+    const count = Number(countRaw);
+    if (!Number.isInteger(count) || count <= 0 || count > 24) return "";
+    return Array.from({ length: count }, () => repeated.trim()).join(" ");
+  });
+}
+
+function gridTrackTokens(value: string): string[] {
+  const tokens: string[] = [];
+  let token = "";
+  let depth = 0;
+  for (const char of value.trim()) {
+    if (char === "(") depth += 1;
+    if (char === ")") depth = Math.max(0, depth - 1);
+    if (/\s/.test(char) && depth === 0) {
+      if (token) tokens.push(token.toLowerCase());
+      token = "";
+      continue;
+    }
+    token += char;
+  }
+  if (token) tokens.push(token.toLowerCase());
+  return tokens;
 }
 
 function parseTextDecoration(value: string): CssStyle["textDecorationLine"] | undefined {

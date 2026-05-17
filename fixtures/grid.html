@@ -1,0 +1,36 @@
+<style>
+  @page { size: Letter; margin: 40pt; }
+  body { margin: 0; font-family: Helvetica, Arial, sans-serif; color: #111; font-size: 13px; }
+  .panel {
+    width: 460px;
+    padding: 14px 16px;
+    border: 1px solid #94a3b8;
+    background: #f8fafc;
+  }
+  h2 { margin: 0 0 10px 0; }
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 2fr 84px;
+    column-gap: 10px;
+    row-gap: 8px;
+  }
+  .card {
+    padding: 8px;
+    border: 1px solid #64748b;
+    background: #ffffff;
+  }
+  .wide {
+    background: #ecfeff;
+  }
+</style>
+<div class="panel">
+  <h2>Grid Fallback</h2>
+  <div class="grid">
+    <div class="card">One short</div>
+    <div class="card wide">Two fraction column should be visibly wider and wrap later than the first column.</div>
+    <div class="card">Fixed 84px</div>
+    <div class="card">Next row</div>
+    <div class="card wide">Auto placement should continue row by row using the same three tracks.</div>
+    <div class="card">End</div>
+  </div>
+</div>
