@@ -202,7 +202,7 @@ function applyDeclaration(out: Partial<CssStyle>, property: string, rawValue: st
       if (value === "none" || value === "left" || value === "right") out.float = value;
       break;
     case "flex-direction":
-      if (value === "row" || value === "column") out.flexDirection = value;
+      if (value === "row" || value === "row-reverse" || value === "column" || value === "column-reverse") out.flexDirection = value;
       break;
     case "align-items":
       if (value === "flex-start") out.alignItems = "start";
@@ -354,13 +354,13 @@ function applyDeclaration(out: Partial<CssStyle>, property: string, rawValue: st
       out.height = parseLength(value, fontSize);
       break;
     case "margin":
-      out.margin = parseEdges(value, fontSize);
+      applyMargin(out, value, fontSize);
       break;
     case "margin-block":
       applyTwoValueEdges(out, "margin", "top", "bottom", value, fontSize);
       break;
     case "margin-inline":
-      applyTwoValueEdges(out, "margin", "left", "right", value, fontSize);
+      applyTwoValueMargin(out, "left", "right", value, fontSize);
       break;
     case "margin-block-start":
       out.margin = setEdge(out.margin, "top", parseLength(value, fontSize));
@@ -369,16 +369,16 @@ function applyDeclaration(out: Partial<CssStyle>, property: string, rawValue: st
       out.margin = setEdge(out.margin, "bottom", parseLength(value, fontSize));
       break;
     case "margin-inline-start":
-      out.margin = setEdge(out.margin, "left", parseLength(value, fontSize));
+      setMarginEdge(out, "left", value, fontSize);
       break;
     case "margin-inline-end":
-      out.margin = setEdge(out.margin, "right", parseLength(value, fontSize));
+      setMarginEdge(out, "right", value, fontSize);
       break;
     case "margin-top":
     case "margin-right":
     case "margin-bottom":
     case "margin-left":
-      out.margin = setEdge(out.margin, property.slice("margin-".length), parseLength(value, fontSize));
+      setMarginEdge(out, property.slice("margin-".length) as "top" | "right" | "bottom" | "left", value, fontSize);
       break;
     case "padding":
       out.padding = parseEdges(value, fontSize);
@@ -420,6 +420,15 @@ function applyDeclaration(out: Partial<CssStyle>, property: string, rawValue: st
       break;
     case "grid-template-columns":
       out.gridTemplateColumns = parseGridTemplateColumns(value, fontSize);
+      break;
+    case "grid-column":
+      parseGridColumn(out, value);
+      break;
+    case "grid-column-start":
+      parseGridColumnLine(out, "gridColumnStart", value);
+      break;
+    case "grid-column-end":
+      parseGridColumnLine(out, "gridColumnEnd", value);
       break;
     case "border":
       parseBorder(out, value, fontSize);
@@ -549,6 +558,62 @@ function applyTwoValueEdges(
   const [firstRaw, secondRaw = firstRaw] = cssValueTokens(value);
   out[property] = setEdge(out[property], firstSide, parseLength(firstRaw, fontSize));
   out[property] = setEdge(out[property], secondSide, parseLength(secondRaw, fontSize));
+}
+
+function applyMargin(out: Partial<CssStyle>, value: string, fontSize: number): void {
+  const [topRaw, rightRaw = topRaw, bottomRaw = topRaw, leftRaw = rightRaw] = cssValueTokens(value);
+  setMarginEdge(out, "top", topRaw, fontSize);
+  setMarginEdge(out, "right", rightRaw, fontSize);
+  setMarginEdge(out, "bottom", bottomRaw, fontSize);
+  setMarginEdge(out, "left", leftRaw, fontSize);
+}
+
+function applyTwoValueMargin(
+  out: Partial<CssStyle>,
+  firstSide: "top" | "right" | "bottom" | "left",
+  secondSide: "top" | "right" | "bottom" | "left",
+  value: string,
+  fontSize: number
+): void {
+  const [firstRaw, secondRaw = firstRaw] = cssValueTokens(value);
+  setMarginEdge(out, firstSide, firstRaw, fontSize);
+  setMarginEdge(out, secondSide, secondRaw, fontSize);
+}
+
+function setMarginEdge(out: Partial<CssStyle>, side: "top" | "right" | "bottom" | "left", value: string | undefined, fontSize: number): void {
+  if (value === undefined) return;
+  if (value === "auto" && (side === "left" || side === "right")) {
+    out.margin = setEdge(out.margin, side, 0);
+    if (side === "left") out.marginAutoLeft = true;
+    else out.marginAutoRight = true;
+    return;
+  }
+  const parsed = parseLength(value, fontSize);
+  out.margin = setEdge(out.margin, side, parsed);
+  if (parsed !== undefined) {
+    if (side === "left") out.marginAutoLeft = undefined;
+    if (side === "right") out.marginAutoRight = undefined;
+  }
+}
+
+function parseGridColumn(out: Partial<CssStyle>, value: string): void {
+  const [startRaw, endRaw] = value.split("/").map((part) => part.trim().toLowerCase());
+  if (startRaw) parseGridColumnLine(out, "gridColumnStart", startRaw);
+  if (endRaw) parseGridColumnLine(out, "gridColumnEnd", endRaw);
+  else if (startRaw?.startsWith("span ")) parseGridColumnLine(out, "gridColumnEnd", startRaw);
+}
+
+function parseGridColumnLine(out: Partial<CssStyle>, property: "gridColumnStart" | "gridColumnEnd", value: string): void {
+  const normalized = value.trim().toLowerCase();
+  const span = /^span\s+(\d+)$/.exec(normalized);
+  if (span) {
+    const amount = Number(span[1]);
+    if (Number.isInteger(amount) && amount > 0) out.gridColumnSpan = amount;
+    return;
+  }
+  const line = Number.parseInt(normalized, 10);
+  if (!Number.isInteger(line)) return;
+  out[property] = line;
 }
 
 function parseGridTemplateColumns(value: string, fontSize: number): GridTrack[] | undefined {

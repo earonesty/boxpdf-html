@@ -162,7 +162,8 @@ function attachFloatsToNode(node: BoxNode, floats: ParagraphFloat[]): { node: Bo
 }
 
 function renderFlex(node: StyledElement, options: HtmlToBoxpdfOptions, warnings: string[]): BoxNode {
-  const children = node.children.flatMap((child) => renderNode(child, options, warnings)).map(defaultFlexItem);
+  const sourceChildren = node.style.flexDirection.endsWith("-reverse") ? [...node.children].reverse() : node.children;
+  const children = sourceChildren.flatMap((child) => renderFlexChild(child, options, warnings)).map(defaultFlexItem);
   const style = {
     width: cssBoxWidth(node),
     height: cssBoxHeight(node),
@@ -184,26 +185,24 @@ function renderFlex(node: StyledElement, options: HtmlToBoxpdfOptions, warnings:
     left: node.style.left,
     zIndex: node.style.zIndex
   };
-  return node.style.flexDirection === "row" ? hstack(style, ...children) : vstack(style, ...children);
+  return node.style.flexDirection.startsWith("row") ? hstack(style, ...children) : vstack(style, ...children);
+}
+
+function renderFlexChild(node: StyledNode, options: HtmlToBoxpdfOptions, warnings: string[]): BoxNode[] {
+  if (!("text" in node) && isInlineContainer(node) && hasBoxStyling(node)) return [renderBlock(node, options, warnings)];
+  return renderNode(node, options, warnings);
 }
 
 function renderGrid(node: StyledElement, options: HtmlToBoxpdfOptions, warnings: string[]): BoxNode {
-  const children = node.children.filter(hasRenderedContent).flatMap((child) => renderNode(child, options, warnings));
   const gridGap = node.style.columnGap ?? node.style.gap ?? 0;
   const gridWidth =
     contentWidth(node) ??
     (node.style.display === "inline-grid"
-      ? inlineGridIntrinsicWidth(children, node.style.gridTemplateColumns, gridGap, options.width)
+      ? inlineGridIntrinsicWidth(node.children.filter(hasRenderedContent).flatMap((child) => renderNode(child, options, warnings)), node.style.gridTemplateColumns, gridGap, options.width)
       : options.width);
   const tracks = resolveGridTracks(node.style.gridTemplateColumns, gridWidth, gridGap);
   if (tracks.length === 0) return renderBlock(node, options, warnings);
-  const rows: BoxNode[] = [];
-  for (let index = 0; index < children.length; index += tracks.length) {
-    const rowChildren = children
-      .slice(index, index + tracks.length)
-      .map((child, childIndex) => constrainGridItem(child, tracks[childIndex] ?? tracks[tracks.length - 1]!));
-    rows.push(hstack({ gap: node.style.columnGap ?? node.style.gap ?? 0, align: node.style.alignItems }, ...stretchGridRow(rowChildren, tracks)));
-  }
+  const rows = gridRows(node, tracks, options, warnings);
   return vstack(
     {
       width: cssBoxWidth(node),
@@ -226,6 +225,99 @@ function renderGrid(node: StyledElement, options: HtmlToBoxpdfOptions, warnings:
     },
     ...rows
   );
+}
+
+interface GridCell {
+  column: number;
+  span: number;
+  node: BoxNode;
+}
+
+function gridRows(node: StyledElement, tracks: number[], options: HtmlToBoxpdfOptions, warnings: string[]): BoxNode[] {
+  const rows: GridCell[][] = [];
+  let row: GridCell[] = [];
+  let cursor = 0;
+  const gap = node.style.columnGap ?? node.style.gap ?? 0;
+  for (const child of node.children.filter(hasRenderedContent)) {
+    const rendered = renderNode(child, options, warnings);
+    if (rendered.length === 0) continue;
+    const requestedStart = !("text" in child) ? child.style.gridColumnStart : undefined;
+    let column = requestedStart !== undefined ? Math.max(0, requestedStart - 1) : cursor;
+    let span = gridColumnSpan(child, tracks.length, column);
+    if (column >= tracks.length) column = tracks.length - 1;
+    span = Math.max(1, Math.min(span, tracks.length - column));
+    if (column < cursor || column + span > tracks.length) {
+      rows.push(row);
+      row = [];
+      cursor = 0;
+      column = requestedStart !== undefined ? Math.max(0, Math.min(requestedStart - 1, tracks.length - 1)) : 0;
+      span = Math.max(1, Math.min(gridColumnSpan(child, tracks.length, column), tracks.length - column));
+    }
+    row.push({ column, span, node: gridCellNode(rendered, gridSpanWidth(tracks, column, span, gap)) });
+    cursor = column + span;
+    if (cursor >= tracks.length) {
+      rows.push(row);
+      row = [];
+      cursor = 0;
+    }
+  }
+  if (row.length > 0) rows.push(row);
+  return rows.map((cells) => renderGridRow(cells, tracks, gap, node.style.alignItems));
+}
+
+function gridColumnSpan(child: StyledNode, trackCount: number, column: number): number {
+  if ("text" in child) return 1;
+  if (child.style.gridColumnSpan !== undefined) return child.style.gridColumnSpan;
+  if (child.style.gridColumnStart !== undefined && child.style.gridColumnEnd !== undefined) {
+    return Math.max(1, child.style.gridColumnEnd - child.style.gridColumnStart);
+  }
+  return Math.max(1, Math.min(1, trackCount - column));
+}
+
+function gridSpanWidth(tracks: number[], column: number, span: number, gap: number): number {
+  return tracks.slice(column, column + span).reduce((sum, width) => sum + width, 0) + gap * Math.max(0, span - 1);
+}
+
+function gridCellNode(nodes: BoxNode[], width: number): BoxNode {
+  const node = nodes.length === 1 ? nodes[0]! : vstack({}, ...nodes);
+  return constrainGridItem(node, width);
+}
+
+function renderGridRow(cells: GridCell[], tracks: number[], gap: number, align: StyledElement["style"]["alignItems"]): BoxNode {
+  const rowChildren: BoxNode[] = [];
+  let cursor = 0;
+  for (const cell of cells.sort((a, b) => a.column - b.column)) {
+    while (cursor < cell.column) {
+      rowChildren.push(vstack({ width: tracks[cursor] ?? 0 }));
+      cursor += 1;
+    }
+    rowChildren.push(cell.node);
+    cursor = cell.column + cell.span;
+  }
+  while (cursor < tracks.length) {
+    rowChildren.push(vstack({ width: tracks[cursor] ?? 0 }));
+    cursor += 1;
+  }
+  return hstack({ gap, align }, ...stretchGridRow(rowChildren, tracksForCells(cells, tracks, gap, rowChildren.length)));
+}
+
+function tracksForCells(cells: GridCell[], tracks: number[], gap: number, childCount: number): number[] {
+  if (cells.every((cell) => cell.span === 1) && childCount === tracks.length) return tracks;
+  const out: number[] = [];
+  let cursor = 0;
+  for (const cell of cells.sort((a, b) => a.column - b.column)) {
+    while (cursor < cell.column) {
+      out.push(tracks[cursor] ?? 0);
+      cursor += 1;
+    }
+    out.push(gridSpanWidth(tracks, cell.column, cell.span, gap));
+    cursor = cell.column + cell.span;
+  }
+  while (cursor < tracks.length) {
+    out.push(tracks[cursor] ?? 0);
+    cursor += 1;
+  }
+  return out;
 }
 
 function inlineGridIntrinsicWidth(children: BoxNode[], tracks: GridTrack[] | undefined, gap: number, parentWidth: number | undefined): number | undefined {
@@ -397,12 +489,25 @@ function renderAtomicInlineNode(node: StyledElement, options: HtmlToBoxpdfOption
 
 function renderImageNode(node: StyledElement, options: HtmlToBoxpdfOptions, warnings: string[]): BoxNode | undefined {
   const src = node.node.attrs.src;
-  if (!src || !options.resolveImage) {
+  if (!src) {
     warnings.push("img without a resolvable src was skipped");
     return undefined;
   }
-  const pdfImage = options.resolveImage({ url: src, baseUrl: options.baseUrl });
+  const pdfImage = options.resolveImage?.({ url: src, baseUrl: options.baseUrl });
   if (!pdfImage) {
+    const size = imageSize(node, options);
+    if (hasExplicitImageSize(node)) {
+      warnings.push(`img src "${src}" did not resolve; preserved its layout box`);
+      return vstack({
+        width: size.width,
+        height: size.height,
+        margin: node.style.margin,
+        border: border(node),
+        borderSides: node.style.borderSides,
+        borderRadius: node.style.borderRadius,
+        background: node.style.background
+      });
+    }
     warnings.push(`img src "${src}" did not resolve`);
     return undefined;
   }
@@ -411,6 +516,10 @@ function renderImageNode(node: StyledElement, options: HtmlToBoxpdfOptions, warn
     return imageFit(pdfImage, { width: size.width, height: size.height, fit: node.style.objectFit, margin: node.style.margin });
   }
   return boxImage(pdfImage, { width: size.width, height: size.height, margin: node.style.margin });
+}
+
+function hasExplicitImageSize(node: StyledElement): boolean {
+  return node.style.width !== undefined || node.style.height !== undefined || node.node.attrs.width !== undefined || node.node.attrs.height !== undefined;
 }
 
 function imageSize(node: StyledElement, options: HtmlToBoxpdfOptions, resolvedImage?: ReturnType<NonNullable<HtmlToBoxpdfOptions["resolveImage"]>>): { width: number; height: number } {
@@ -637,4 +746,17 @@ function preservesWhitespace(style: StyledText["style"]): boolean {
 function border(node: StyledElement) {
   if (!node.style.borderWidth || !node.style.borderColor) return undefined;
   return { width: node.style.borderWidth, color: node.style.borderColor };
+}
+
+function hasBoxStyling(node: StyledElement): boolean {
+  return Boolean(
+    node.style.background ||
+      node.style.backgroundImageUrl ||
+      node.style.borderWidth ||
+      node.style.borderSides ||
+      node.style.borderRadius ||
+      node.style.padding ||
+      node.style.width !== undefined ||
+      node.style.height !== undefined
+  );
 }

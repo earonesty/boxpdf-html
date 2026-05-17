@@ -45,6 +45,7 @@ function styleElement(node: HtmlElementNode, rules: CssRule[], inherited: CssSty
     style.width = containingWidth;
   }
   if (style.width !== undefined) style.width = clamp(style.width, style.minWidth, style.maxWidth);
+  applyAutoMargins(style, containingWidth);
   if (style.lineHeightScale !== undefined) style.lineHeight = style.fontSize * style.lineHeightScale;
   const inheritedForChildren = inherit(style);
   const childContainingWidth = contentWidthForChildren(style, containingWidth);
@@ -76,6 +77,8 @@ function defaultsForTag(tag: string, inherited: CssStyle): CssStyle {
     display: blockTags.has(tag) ? "block" : "inline",
     float: undefined,
     margin: undefined,
+    marginAutoLeft: undefined,
+    marginAutoRight: undefined,
     padding: undefined,
     background: undefined,
     backgroundImageUrl: undefined,
@@ -108,7 +111,10 @@ function defaultsForTag(tag: string, inherited: CssStyle): CssStyle {
     zIndex: undefined,
     columnGap: undefined,
     rowGap: undefined,
-    gridTemplateColumns: undefined
+    gridTemplateColumns: undefined,
+    gridColumnStart: undefined,
+    gridColumnEnd: undefined,
+    gridColumnSpan: undefined
   };
   if (tag === "strong" || tag === "b" || tag === "th") style.fontWeight = "bold";
   if (tag === "em" || tag === "i") style.fontStyle = "italic";
@@ -152,6 +158,8 @@ function inherit(style: CssStyle): CssStyle {
     display: "inline",
     float: undefined,
     margin: undefined,
+    marginAutoLeft: undefined,
+    marginAutoRight: undefined,
     padding: undefined,
     background: undefined,
     backgroundImageUrl: undefined,
@@ -184,7 +192,10 @@ function inherit(style: CssStyle): CssStyle {
     zIndex: undefined,
     columnGap: undefined,
     rowGap: undefined,
-    gridTemplateColumns: undefined
+    gridTemplateColumns: undefined,
+    gridColumnStart: undefined,
+    gridColumnEnd: undefined,
+    gridColumnSpan: undefined
   };
 }
 
@@ -213,6 +224,27 @@ function contentWidthForChildren(style: CssStyle, containingWidth: number | unde
   const padding = edges(style.padding);
   const borders = borderWidths(style);
   return Math.max(0, containingWidth - padding.left - padding.right - borders.left - borders.right);
+}
+
+function applyAutoMargins(style: CssStyle, containingWidth: number | undefined): void {
+  if (containingWidth === undefined || style.width === undefined || (!style.marginAutoLeft && !style.marginAutoRight)) return;
+  const margin = edges(style.margin);
+  const remaining = Math.max(0, containingWidth - outerWidth(style) + margin.left + margin.right);
+  if (style.marginAutoLeft && style.marginAutoRight) {
+    style.margin = { ...margin, left: remaining / 2, right: remaining / 2 };
+  } else if (style.marginAutoLeft) {
+    style.margin = { ...margin, left: remaining };
+  } else if (style.marginAutoRight) {
+    style.margin = { ...margin, right: remaining };
+  }
+}
+
+function outerWidth(style: CssStyle): number {
+  const margin = edges(style.margin);
+  const padding = edges(style.padding);
+  const borders = borderWidths(style);
+  const box = style.boxSizing === "border-box" ? style.width ?? 0 : (style.width ?? 0) + padding.left + padding.right + borders.left + borders.right;
+  return box + margin.left + margin.right;
 }
 
 function contentWidth(style: CssStyle): number {

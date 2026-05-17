@@ -12,7 +12,23 @@ export interface HtmlToBoxpdfOptions {
   defaultFontSize?: number;
   defaultLineHeight?: number;
   defaultColor?: RGB;
+  profile?: HtmlProfileCallback;
 }
+
+export interface HtmlProfileEvent {
+  phase: "start" | "parse-html" | "parse-css" | "compute-styles" | "render-tree" | "finish";
+  elapsedMs: number;
+  htmlBytes?: number;
+  domNodes?: number;
+  stylesheets?: number;
+  cssRules?: number;
+  styledNodes?: number;
+  boxNodes?: number;
+  paragraphs?: number;
+  textRuns?: number;
+}
+
+export type HtmlProfileCallback = (event: HtmlProfileEvent) => void;
 
 export type FontWeight = "normal" | "bold" | number;
 export type FontStyle = "normal" | "italic";
@@ -68,7 +84,7 @@ export type CssLengthPercentage = { length: number; percent: number };
 export interface CssStyle {
   display: Display;
   float?: "none" | "left" | "right";
-  flexDirection: "row" | "column";
+  flexDirection: "row" | "row-reverse" | "column" | "column-reverse";
   alignItems: "start" | "center" | "end" | "stretch" | "baseline";
   justifyContent: "start" | "center" | "end" | "between" | "around" | "evenly";
   color?: RGB;
@@ -101,6 +117,8 @@ export interface CssStyle {
   maxWidthCalc?: CssLengthPercentage;
   height?: number;
   margin?: EdgesInput;
+  marginAutoLeft?: boolean;
+  marginAutoRight?: boolean;
   padding?: EdgesInput;
   borderWidth?: number;
   borderColor?: RGB;
@@ -115,6 +133,9 @@ export interface CssStyle {
   columnGap?: number;
   rowGap?: number;
   gridTemplateColumns?: GridTrack[];
+  gridColumnStart?: number;
+  gridColumnEnd?: number;
+  gridColumnSpan?: number;
   position?: Position;
   top?: number;
   right?: number;

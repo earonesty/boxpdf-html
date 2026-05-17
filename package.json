@@ -27,6 +27,7 @@
     "visual:check": "pnpm run visual:check:boxpdf",
     "visual:check:boxpdf": "pnpm run build && node scripts/check-boxpdf-baselines.mjs",
     "visual:check:prince": "pnpm run visual:regenerate && git diff --exit-code -- artifacts/*/*.png",
+    "profile:render": "pnpm run build && node scripts/render-boxpdf-profile.mjs",
     "prepublishOnly": "pnpm run typecheck && pnpm run test && pnpm run build && node scripts/prepare-publish.mjs --verify",
     "pack:release": "pnpm run typecheck && pnpm run test && pnpm run build && node scripts/prepare-publish.mjs --pack",
     "publish:release": "pnpm run typecheck && pnpm run test && pnpm run build && node scripts/prepare-publish.mjs --publish"

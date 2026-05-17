@@ -526,6 +526,48 @@ c</p>`,
     expect(min.style.width).toBe(67.5);
   });
 
+  it("centers fixed-width blocks with horizontal auto margins", () => {
+    const result = htmlToBoxpdf(`<div style="width:120px;margin:0 auto">Centered</div>`, { font, width: 300 });
+    const node = result.nodes[0];
+    if (node?.kind !== "vstack") throw new Error("expected block");
+    expect(node.style.width).toBe(90);
+    expect(node.style.margin).toMatchObject({ left: 105, right: 105 });
+  });
+
+  it("honors reverse flex directions", () => {
+    const row = htmlToBoxpdf(`<div style="display:flex;flex-direction:row-reverse"><span>A</span><span>B</span></div>`, { font, width: 300 });
+    const column = htmlToBoxpdf(`<div style="display:flex;flex-direction:column-reverse"><div>A</div><div>B</div></div>`, { font, width: 300 });
+    const rowNode = row.nodes[0];
+    const columnNode = column.nodes[0];
+    if (rowNode?.kind !== "hstack" || columnNode?.kind !== "vstack") throw new Error("expected flex boxes");
+    const rowFirst = rowNode.children[0];
+    const columnFirst = columnNode.children[0];
+    if (rowFirst?.kind !== "paragraph" || columnFirst?.kind !== "vstack") throw new Error("expected rendered children");
+    expect(rowFirst.runs.map((item) => ("text" in item ? item.text : "")).join("")).toBe("B");
+    expect(columnFirst.children[0]).toMatchObject({ kind: "paragraph", runs: [{ text: "B" }] });
+  });
+
+  it("places grid items with grid-column spans", () => {
+    const result = htmlToBoxpdf(
+      `<style>.grid{display:grid;width:300px;grid-template-columns:1fr 2fr 1fr;column-gap:10px}.wide{grid-column:2 / span 2}</style>
+       <div class="grid"><div>A</div><div class="wide">Wide</div><div>C</div></div>`,
+      { font, width: 400 }
+    );
+    const grid = result.nodes[0];
+    if (grid?.kind !== "vstack") throw new Error("expected grid");
+    const firstRow = grid.children[0];
+    if (firstRow?.kind !== "hstack") throw new Error("expected row");
+    expect(firstRow.children).toHaveLength(2);
+    expect(firstRow.children[0]).toMatchObject({ kind: "vstack", style: { width: 52.5 } });
+    expect(firstRow.children[1]).toMatchObject({ kind: "vstack", style: { width: 165 } });
+  });
+
+  it("preserves unresolved image layout boxes when dimensions are known", () => {
+    const result = htmlToBoxpdf(`<img src="missing.jpg" width="200" height="100">`, { font, width: 300 });
+    expect(result.warnings).toContain(`img src "missing.jpg" did not resolve; preserved its layout box`);
+    expect(result.nodes[0]).toMatchObject({ kind: "vstack", style: { width: 150, height: 75 } });
+  });
+
   it("resolves CSS font families through the helper hook", () => {
     const result = htmlToBoxpdf(`<p style="font-family: Missing, Inter; font-weight: 700">Hello</p>`, {
       font,

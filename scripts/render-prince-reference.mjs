@@ -1,14 +1,14 @@
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, extname, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { fontFamily, htmlToBoxpdf } from "../dist/index.js";
-import { renderFlow } from "../../dist/index.js";
+import { loadFont, renderFlow } from "../../dist/index.js";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const coreRequire = createRequire(resolve(root, "../package.json"));
-const { PDFDocument, StandardFonts } = coreRequire("pdf-lib");
+const { PDFDocument } = coreRequire("pdf-lib");
 const input = resolve(root, process.argv[2] ?? "fixtures/alpha-mvp.html");
 const outDir = resolve(root, process.argv[3] ?? "artifacts/prince-reference");
 const prince = process.env.PRINCE_BIN ?? resolve(root, ".tools/prince/lib/prince/bin/prince");
@@ -31,10 +31,10 @@ console.log(`wrote ${resolve(outDir, "prince.png")}`);
 
 async function renderBoxpdf(source, output) {
   const doc = await PDFDocument.create();
-  const font = await doc.embedFont(StandardFonts.Helvetica);
-  const boldFont = await doc.embedFont(StandardFonts.HelveticaBold);
-  const italicFont = await doc.embedFont(StandardFonts.HelveticaOblique);
-  const boldItalicFont = await doc.embedFont(StandardFonts.HelveticaBoldOblique);
+  const font = await loadFont(doc, readFileSync("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"));
+  const boldFont = await loadFont(doc, readFileSync("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"));
+  const italicFont = await loadFont(doc, readFileSync("/usr/share/fonts/truetype/dejavu/DejaVuSans-Oblique.ttf"));
+  const boldItalicFont = await loadFont(doc, readFileSync("/usr/share/fonts/truetype/dejavu/DejaVuSans-BoldOblique.ttf"));
   const images = await embedImages(doc, source, dirname(input));
   const result = htmlToBoxpdf(source, {
     font,
@@ -43,7 +43,10 @@ async function renderBoxpdf(source, output) {
     resolveFont: fontFamily({
       Helvetica: { normal: font, bold: boldFont, italic: italicFont, boldItalic: boldItalicFont },
       Arial: { normal: font, bold: boldFont, italic: italicFont, boldItalic: boldItalicFont },
-      "sans-serif": { normal: font, bold: boldFont, italic: italicFont, boldItalic: boldItalicFont }
+      "sans-serif": { normal: font, bold: boldFont, italic: italicFont, boldItalic: boldItalicFont },
+      "New York Times": { normal: font, bold: boldFont, italic: italicFont, boldItalic: boldItalicFont },
+      "nyt-cheltenham": { normal: font, bold: boldFont, italic: italicFont, boldItalic: boldItalicFont },
+      "nyt-franklin": { normal: font, bold: boldFont, italic: italicFont, boldItalic: boldItalicFont }
     }),
     resolveImage: ({ url }) => images.get(resolve(dirname(input), url)),
     baseUrl: dirname(input),
@@ -64,12 +67,14 @@ async function embedImages(doc, source, baseDir) {
     const url = (match[1] ?? match[2] ?? match[3])?.trim();
     if (!url || /^(https?:|data:)/i.test(url)) continue;
     const imagePath = resolve(baseDir, url);
+    if (!existsSync(imagePath)) continue;
     if (!images.has(imagePath)) images.set(imagePath, await embedImage(doc, imagePath));
   }
   for (const match of source.matchAll(/<img\b[^>]*\bsrc\s*=\s*(?:"([^"]+)"|'([^']+)'|([^\s>]+))/gi)) {
     const url = (match[1] ?? match[2] ?? match[3])?.trim();
     if (!url || /^(https?:|data:)/i.test(url)) continue;
     const imagePath = resolve(baseDir, url);
+    if (!existsSync(imagePath)) continue;
     if (!images.has(imagePath)) images.set(imagePath, await embedImage(doc, imagePath));
   }
   return images;
