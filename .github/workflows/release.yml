@@ -45,6 +45,14 @@ jobs:
       - name: Upgrade npm
         run: npm install -g npm@latest
 
+      - name: Install boxpdf
+        run: pnpm install --frozen-lockfile
+        working-directory: boxpdf
+
+      - name: Build boxpdf
+        run: pnpm run build
+        working-directory: boxpdf
+
       - name: Install
         run: pnpm install --frozen-lockfile
 
