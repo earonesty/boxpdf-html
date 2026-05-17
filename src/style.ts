@@ -66,6 +66,7 @@ function defaultsForTag(tag: string, inherited: CssStyle): CssStyle {
   const style: CssStyle = {
     ...inherited,
     display: blockTags.has(tag) ? "block" : "inline",
+    float: undefined,
     margin: undefined,
     padding: undefined,
     background: undefined,
@@ -132,6 +133,7 @@ function inherit(style: CssStyle): CssStyle {
   return {
     ...style,
     display: "inline",
+    float: undefined,
     margin: undefined,
     padding: undefined,
     background: undefined,

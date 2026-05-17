@@ -3,6 +3,7 @@ import {
   hline,
   hstack,
   paragraph,
+  type ParagraphFloat,
   run,
   table,
   text,
@@ -65,25 +66,80 @@ function renderBlock(node: StyledElement, options: HtmlToBoxpdfOptions, warnings
 function renderBlockChildren(node: StyledElement, options: HtmlToBoxpdfOptions, warnings: string[]): BoxNode[] {
   const out: BoxNode[] = [];
   let inlineBuffer: StyledNode[] = [];
+  let floats: ParagraphFloat[] = [];
 
   const flushInline = (): void => {
     const runs = collectInlineRuns(inlineBuffer, options);
-    if (runs.length > 0) {
-      out.push(paragraph({ width: contentWidth(node), align: node.style.textAlign, wrap: shouldWrap(node.style) }, ...runs));
+    if (runs.length > 0 || floats.length > 0) {
+      out.push(paragraph({ width: contentWidth(node), align: node.style.textAlign, wrap: shouldWrap(node.style), floats }, ...runs));
+      floats = [];
     }
     inlineBuffer = [];
   };
 
   for (const child of node.children) {
+    if (!("text" in child) && child.style.float && child.style.float !== "none") {
+      floats.push({ node: renderFloatNode(child, options, warnings), side: child.style.float });
+      continue;
+    }
     if (isInlineLike(child)) {
       inlineBuffer.push(child);
       continue;
     }
-    flushInline();
-    out.push(...renderNode(child, options, warnings));
+    if (inlineBuffer.some(hasInlineContent)) flushInline();
+    else inlineBuffer = [];
+    const rendered = renderNode(child, options, warnings);
+    if (floats.length > 0) {
+      const attached = attachFloatsToFirstParagraph(rendered, floats);
+      if (attached.attached) {
+        out.push(...attached.nodes);
+        floats = [];
+        continue;
+      }
+      flushInline();
+    }
+    out.push(...rendered);
   }
   flushInline();
   return out;
+}
+
+function hasInlineContent(node: StyledNode): boolean {
+  if ("text" in node) return node.text.trim().length > 0;
+  if (node.node.tag === "br") return true;
+  return node.children.some(hasInlineContent);
+}
+
+function renderFloatNode(node: StyledElement, options: HtmlToBoxpdfOptions, warnings: string[]): BoxNode {
+  if (node.node.tag === "table") return renderTable(node, options, warnings)[0] ?? renderBlock(node, options, warnings);
+  if (node.style.display === "flex") return renderFlex(node, options, warnings);
+  return renderBlock(node, options, warnings);
+}
+
+function attachFloatsToFirstParagraph(nodes: BoxNode[], floats: ParagraphFloat[]): { nodes: BoxNode[]; attached: boolean } {
+  let attached = false;
+  const next = nodes.map((node) => {
+    if (attached) return node;
+    const result = attachFloatsToNode(node, floats);
+    attached = result.attached;
+    return result.node;
+  });
+  return { nodes: next, attached };
+}
+
+function attachFloatsToNode(node: BoxNode, floats: ParagraphFloat[]): { node: BoxNode; attached: boolean } {
+  if (node.kind === "paragraph") {
+    return { node: { ...node, props: { ...node.props, floats: [...floats, ...(node.props.floats ?? [])] } }, attached: true };
+  }
+  if (node.kind !== "vstack" && node.kind !== "hstack") return { node, attached: false };
+  let attached = false;
+  const children = node.children.map((child) => {
+    if (attached) return child;
+    const result = attachFloatsToNode(child, floats);
+    attached = result.attached;
+    return result.node;
+  });
+  return attached ? { node: { ...node, children }, attached } : { node, attached };
 }
 
 function renderFlex(node: StyledElement, options: HtmlToBoxpdfOptions, warnings: string[]): BoxNode {

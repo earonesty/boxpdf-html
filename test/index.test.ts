@@ -228,6 +228,52 @@ c</p>`,
     expect(badge.style).toMatchObject({ position: "absolute", top: 6, right: 7.5, zIndex: 2 });
   });
 
+  it("maps floated boxes to paragraph float wrapping", () => {
+    const result = htmlToBoxpdf(
+      `<style>.float{float:left;width:48px;height:24px;margin-right:8px;background:#dbeafe}.wrap{width:120px}</style>
+       <div class="wrap"><span class="float">F</span>alpha beta gamma delta epsilon zeta</div>`,
+      { font, width: 320 }
+    );
+    const block = result.nodes[0];
+    if (block?.kind !== "vstack") throw new Error("expected block");
+    const paragraphNode = block.children[0];
+    if (paragraphNode?.kind !== "paragraph") throw new Error("expected paragraph");
+    expect(paragraphNode.props.floats).toHaveLength(1);
+    expect(paragraphNode.props.floats?.[0]).toMatchObject({ side: "left" });
+  });
+
+  it("wraps a following block paragraph around preceding floats", () => {
+    const result = htmlToBoxpdf(
+      `<style>.float{float:left;width:48px;height:24px;margin-right:8px;background:#dbeafe}.wrap{width:120px}</style>
+       <div class="wrap"><div class="float">F</div>
+       <p>alpha beta gamma delta epsilon zeta</p></div>`,
+      { font, width: 320 }
+    );
+    const block = result.nodes[0];
+    if (block?.kind !== "vstack") throw new Error("expected block");
+    const paragraphBlock = block.children[0];
+    if (paragraphBlock?.kind !== "vstack") throw new Error("expected paragraph block");
+    const paragraphNode = paragraphBlock.children[0];
+    if (paragraphNode?.kind !== "paragraph") throw new Error("expected paragraph");
+    expect(paragraphNode.props.floats).toHaveLength(1);
+    expect(paragraphNode.props.floats?.[0]).toMatchObject({ side: "left" });
+  });
+
+  it("emits an empty paragraph to paint floats without text", () => {
+    const result = htmlToBoxpdf(
+      `<style>.float{float:right;width:48px;height:24px;background:#dbeafe}.wrap{width:120px}</style>
+       <div class="wrap"><div class="float">F</div></div>`,
+      { font, width: 320 }
+    );
+    const block = result.nodes[0];
+    if (block?.kind !== "vstack") throw new Error("expected block");
+    const paragraphNode = block.children[0];
+    if (paragraphNode?.kind !== "paragraph") throw new Error("expected paragraph");
+    expect(paragraphNode.runs).toHaveLength(0);
+    expect(paragraphNode.props.floats).toHaveLength(1);
+    expect(paragraphNode.props.floats?.[0]).toMatchObject({ side: "right" });
+  });
+
   it("resolves percentage widths against parent content width", () => {
     const result = htmlToBoxpdf(
       `<style>.panel{width:300px;padding:10px}table{width:100%}</style>

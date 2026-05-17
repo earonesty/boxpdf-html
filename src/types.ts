@@ -56,6 +56,7 @@ export type Display = "block" | "inline" | "inline-block" | "flex" | "none";
 
 export interface CssStyle {
   display: Display;
+  float?: "none" | "left" | "right";
   flexDirection: "row" | "column";
   alignItems: "start" | "center" | "end" | "stretch" | "baseline";
   justifyContent: "start" | "center" | "end" | "between" | "around" | "evenly";

@@ -82,6 +82,9 @@ function applyDeclaration(out: Partial<CssStyle>, property: string, rawValue: st
     case "display":
       if (["block", "inline", "inline-block", "flex", "none"].includes(value)) out.display = value as Display;
       break;
+    case "float":
+      if (value === "none" || value === "left" || value === "right") out.float = value;
+      break;
     case "flex-direction":
       if (value === "row" || value === "column") out.flexDirection = value;
       break;

@@ -1,0 +1,44 @@
+<style>
+  @page { size: Letter; margin: 40pt; }
+  body { margin: 0; font-family: Helvetica, Arial, sans-serif; color: #111; font-size: 13px; }
+  .panel {
+    width: 430px;
+    padding: 14px 16px;
+    border: 1px solid #94a3b8;
+    background: #f8fafc;
+  }
+  h2 { margin: 0 0 10px 0; }
+  .story {
+    width: 360px;
+    margin-top: 12px;
+    line-height: 1.25;
+  }
+  .float {
+    float: left;
+    width: 86px;
+    height: 54px;
+    margin: 0 12px 6px 0;
+    padding: 8px;
+    border: 1px solid #2563eb;
+    background: #dbeafe;
+    color: #0f172a;
+  }
+  .right {
+    float: right;
+    margin: 0 0 6px 12px;
+    border-color: #16a34a;
+    background: #dcfce7;
+  }
+  p { margin: 0; }
+</style>
+<div class="panel">
+  <h2>Floats</h2>
+  <div class="story">
+    <span class="float">FLOAT</span>
+    Text should wrap along the right edge of the floated box for the first few lines, then return to the full available width once the float is cleared by normal line flow.
+  </div>
+  <div class="story">
+    <div class="float right">RIGHT</div>
+    <p>A following block paragraph should also wrap around a preceding floated box. The first lines stay to the left, and lower lines resume the full text measure.</p>
+  </div>
+</div>
