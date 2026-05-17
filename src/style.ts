@@ -21,9 +21,9 @@ function styleNode(node: HtmlNode, rules: CssRule[], inherited: CssStyle, contai
 
 function styleElement(node: HtmlElementNode, rules: CssRule[], inherited: CssStyle, containingWidth?: number): StyledElement {
   const tagDefaults = defaultsForTag(node.tag, inherited);
-  const ruleDeclarations = ruleDeclarationsFor(node, rules);
+  const ruleDeclarations = ruleDeclarationsFor(node, rules, tagDefaults.fontSize, tagDefaults.customProperties);
   const withRules = mergeStyles(tagDefaults, ruleDeclarations.declarations);
-  const inlineDeclarations = parseStyleAttribute(node.attrs.style, withRules.fontSize);
+  const inlineDeclarations = parseStyleAttribute(node.attrs.style, withRules.fontSize, withRules.customProperties);
   const style = mergeStyles(
     withRules,
     inlineDeclarations.declarations,

@@ -5,6 +5,7 @@ export const comparisons = [
   ["fixtures/border-sides.html", "artifacts/border-sides"],
   ["fixtures/box-sizing.html", "artifacts/box-sizing"],
   ["fixtures/css-values.html", "artifacts/css-values"],
+  ["fixtures/css-variables.html", "artifacts/css-variables"],
   ["fixtures/css-basics.html", "artifacts/css-basics"],
   ["fixtures/floats.html", "artifacts/floats"],
   ["fixtures/font-shorthand.html", "artifacts/font-shorthand"],

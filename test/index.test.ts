@@ -362,6 +362,27 @@ c</p>`,
     expect(scroll.style.overflow).toBeUndefined();
   });
 
+  it("resolves inherited CSS custom properties and var fallbacks", () => {
+    const result = htmlToBoxpdf(
+      `<style>
+        :root { --brand: #2563eb; --space: 12px; --missing-test: var(--missing, var(--danger)); --danger: #dc2626; }
+        .panel { color: var(--brand); padding: var(--space); border: 1px solid var(--brand); }
+        .panel strong { color: var(--missing-test); }
+      </style>
+      <div class="panel">Brand <strong>fallback</strong></div>`,
+      { font, width: 320 }
+    );
+    const panel = result.nodes[0];
+    if (panel?.kind !== "vstack") throw new Error("expected panel");
+    expect(panel.style.padding).toBe(9.75);
+    expect(panel.style.border?.color).toMatchObject({ r: 0.1450980392156863, g: 0.38823529411764707, b: 0.9215686274509803 });
+    const paragraphNode = panel.children[0];
+    if (paragraphNode?.kind !== "paragraph") throw new Error("expected paragraph");
+    const colors = paragraphNode.runs.filter((run) => "text" in run).map((run) => ("text" in run ? run.style.color : undefined));
+    expect(colors[0]).toMatchObject({ r: 0.1450980392156863, g: 0.38823529411764707, b: 0.9215686274509803 });
+    expect(colors[1]).toMatchObject({ r: 0.8627450980392157, g: 0.14901960784313725, b: 0.14901960784313725 });
+  });
+
   it("resolves calc, rem, and viewport length values", () => {
     const result = htmlToBoxpdf(
       `<style>.outer{width:300px}.calc{width:calc(50% - 10px);padding:calc(1rem + 2px)}.vw{width:10vw}</style>

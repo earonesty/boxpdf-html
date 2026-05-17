@@ -111,6 +111,7 @@ export interface CssStyle {
   bottom?: number;
   left?: number;
   zIndex?: number;
+  customProperties?: Record<string, string>;
 }
 
 export interface StyledElement {
@@ -129,10 +130,15 @@ export type StyledNode = StyledElement | StyledText;
 
 export interface CssRule {
   selector: string;
-  declarations: Partial<CssStyle>;
-  importantDeclarations: Partial<CssStyle>;
+  declarations: CssDeclaration[];
+  importantDeclarations: CssDeclaration[];
   specificity: number;
   order: number;
+}
+
+export interface CssDeclaration {
+  property: string;
+  value: string;
 }
 
 export interface RenderResult {

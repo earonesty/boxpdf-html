@@ -1,7 +1,7 @@
 import { generate, parse as parseCss, walk } from "css-tree";
 import { parseColor } from "./color.js";
 import { parseLength, parseLengthPercentage, parseLineHeight, parsePercentage } from "./units.js";
-import type { CssRule, CssStyle, Display, GridTrack, HtmlElementNode } from "./types.js";
+import type { CssDeclaration, CssRule, CssStyle, Display, GridTrack, HtmlElementNode } from "./types.js";
 import type { Border, EdgesInput } from "boxpdf";
 
 type CssNode = { type: string; [key: string]: unknown };
@@ -17,7 +17,7 @@ export function parseStylesheets(stylesheets: string[]): CssRule[] {
       const prelude = node.prelude as CssNode | undefined;
       const block = node.block as CssNode | undefined;
       if (!prelude || !block) return;
-      const declarations = declarationsFromBlock(block, 16);
+      const declarations = rawDeclarationsFromBlock(block);
       for (const selector of selectorList(prelude)) {
         rules.push({
           selector,
@@ -32,24 +32,32 @@ export function parseStylesheets(stylesheets: string[]): CssRule[] {
   return rules;
 }
 
-export function parseStyleAttribute(value: string | undefined, fontSize: number): DeclarationSet {
+export function parseStyleAttribute(value: string | undefined, fontSize: number, customProperties: Record<string, string> = {}): DeclarationSet {
   const declarations: DeclarationSet = { declarations: {}, importantDeclarations: {} };
   if (!value) return declarations;
-  for (const chunk of value.split(";")) {
-    const colon = chunk.indexOf(":");
-    if (colon === -1) continue;
-    const parsed = stripImportant(chunk.slice(colon + 1).trim());
-    applyDeclaration(parsed.important ? declarations.importantDeclarations : declarations.declarations, chunk.slice(0, colon).trim(), parsed.value, fontSize);
-  }
+  const raw = rawDeclarationsFromStyleAttribute(value);
+  const vars = mergeCustomProperties(customProperties, raw.declarations, raw.importantDeclarations);
+  parseDeclarationsInto(declarations.declarations, raw.declarations, fontSize, vars);
+  parseDeclarationsInto(declarations.importantDeclarations, raw.importantDeclarations, fontSize, vars);
   return declarations;
 }
 
-export function ruleDeclarationsFor(node: HtmlElementNode, rules: CssRule[]): DeclarationSet {
+export function ruleDeclarationsFor(
+  node: HtmlElementNode,
+  rules: CssRule[],
+  fontSize: number,
+  customProperties: Record<string, string> = {}
+): DeclarationSet {
   const out: DeclarationSet = { declarations: {}, importantDeclarations: {} };
+  const declarations: CssDeclaration[] = [];
+  const importantDeclarations: CssDeclaration[] = [];
   for (const rule of rules.filter((r) => matchesSelector(node, r.selector)).sort(compareRule)) {
-    mergeDeclarations(out.declarations, rule.declarations);
-    mergeDeclarations(out.importantDeclarations, rule.importantDeclarations);
+    declarations.push(...rule.declarations);
+    importantDeclarations.push(...rule.importantDeclarations);
   }
+  const vars = mergeCustomProperties(customProperties, declarations, importantDeclarations);
+  parseDeclarationsInto(out.declarations, declarations, fontSize, vars);
+  parseDeclarationsInto(out.importantDeclarations, importantDeclarations, fontSize, vars);
   return out;
 }
 
@@ -61,14 +69,119 @@ function mergeDeclarations(target: Partial<CssStyle>, source: Partial<CssStyle>)
   }
 }
 
-function declarationsFromBlock(block: CssNode, fontSize: number): DeclarationSet {
-  const out: DeclarationSet = { declarations: {}, importantDeclarations: {} };
+function rawDeclarationsFromBlock(block: CssNode): { declarations: CssDeclaration[]; importantDeclarations: CssDeclaration[] } {
+  const out: { declarations: CssDeclaration[]; importantDeclarations: CssDeclaration[] } = { declarations: [], importantDeclarations: [] };
   const children = block.children as { forEach: (fn: (node: CssNode) => void) => void } | undefined;
   children?.forEach((node) => {
     if (node.type !== "Declaration") return;
-    applyDeclaration(node.important ? out.importantDeclarations : out.declarations, String(node.property), generate(node.value), fontSize);
+    const target = node.important ? out.importantDeclarations : out.declarations;
+    target.push({ property: String(node.property), value: generate(node.value) });
   });
   return out;
+}
+
+function rawDeclarationsFromStyleAttribute(value: string): { declarations: CssDeclaration[]; importantDeclarations: CssDeclaration[] } {
+  const out: { declarations: CssDeclaration[]; importantDeclarations: CssDeclaration[] } = { declarations: [], importantDeclarations: [] };
+  for (const chunk of value.split(";")) {
+    const colon = chunk.indexOf(":");
+    if (colon === -1) continue;
+    const parsed = stripImportant(chunk.slice(colon + 1).trim());
+    const target = parsed.important ? out.importantDeclarations : out.declarations;
+    target.push({ property: chunk.slice(0, colon).trim(), value: parsed.value });
+  }
+  return out;
+}
+
+function parseDeclarationsInto(
+  out: Partial<CssStyle>,
+  declarations: CssDeclaration[],
+  fontSize: number,
+  customProperties: Record<string, string>
+): void {
+  for (const declaration of declarations) {
+    const property = declaration.property.trim();
+    if (property.startsWith("--")) continue;
+    applyDeclaration(out, property, resolveVars(declaration.value, customProperties), fontSize);
+  }
+  const vars = customPropertiesFrom(declarations, customProperties);
+  if (Object.keys(vars).length > 0) out.customProperties = vars;
+}
+
+function mergeCustomProperties(
+  inherited: Record<string, string>,
+  declarations: CssDeclaration[],
+  importantDeclarations: CssDeclaration[]
+): Record<string, string> {
+  return customPropertiesFrom(importantDeclarations, customPropertiesFrom(declarations, inherited));
+}
+
+function customPropertiesFrom(declarations: CssDeclaration[], inherited: Record<string, string>): Record<string, string> {
+  let out = inherited;
+  for (const declaration of declarations) {
+    const property = declaration.property.trim();
+    if (!property.startsWith("--")) continue;
+    if (out === inherited) out = { ...inherited };
+    out[property] = declaration.value.trim();
+  }
+  return out;
+}
+
+function resolveVars(value: string, customProperties: Record<string, string>, seen = new Set<string>()): string {
+  let out = "";
+  let index = 0;
+  while (index < value.length) {
+    const start = value.indexOf("var(", index);
+    if (start === -1) {
+      out += value.slice(index);
+      break;
+    }
+    out += value.slice(index, start);
+    const end = closingParenIndex(value, start + 4);
+    if (end === -1) {
+      out += value.slice(start);
+      break;
+    }
+    out += resolveVarFunction(value.slice(start + 4, end), customProperties, seen);
+    index = end + 1;
+  }
+  return out;
+}
+
+function resolveVarFunction(args: string, customProperties: Record<string, string>, seen: Set<string>): string {
+  const comma = topLevelCommaIndex(args);
+  const name = (comma === -1 ? args : args.slice(0, comma)).trim();
+  if (!/^--[A-Za-z0-9_-]+$/.test(name)) return "";
+  const fallback = comma === -1 ? undefined : args.slice(comma + 1).trim();
+  if (seen.has(name)) return fallback ? resolveVars(fallback, customProperties, seen) : "";
+  const replacement = customProperties[name];
+  if (replacement === undefined) return fallback ? resolveVars(fallback, customProperties, seen) : "";
+  const nextSeen = new Set(seen);
+  nextSeen.add(name);
+  return resolveVars(replacement, customProperties, nextSeen);
+}
+
+function closingParenIndex(value: string, openIndex: number): number {
+  let depth = 0;
+  for (let index = openIndex; index < value.length; index += 1) {
+    const char = value[index];
+    if (char === "(") depth += 1;
+    if (char === ")") {
+      if (depth === 0) return index;
+      depth -= 1;
+    }
+  }
+  return -1;
+}
+
+function topLevelCommaIndex(value: string): number {
+  let depth = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    const char = value[index];
+    if (char === "(") depth += 1;
+    if (char === ")") depth = Math.max(0, depth - 1);
+    if (char === "," && depth === 0) return index;
+  }
+  return -1;
 }
 
 function stripImportant(value: string): { value: string; important: boolean } {
@@ -625,6 +738,8 @@ function stripSupportedPseudos(selector: string, node: HtmlElementNode): string 
     const arg = match[2]?.trim();
     if (name === "first-child") {
       if (elementIndex(node) !== 1) return undefined;
+    } else if (name === "root") {
+      if (node.parent !== undefined) return undefined;
     } else if (name === "last-child") {
       if (elementIndex(node) !== elementSiblings(node).length) return undefined;
     } else if (name === "nth-child") {
