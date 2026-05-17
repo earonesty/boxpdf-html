@@ -39,9 +39,9 @@ function renderNode(node: StyledNode, options: HtmlToBoxpdfOptions, warnings: st
   if (node.node.tag === "hr") return [hline({ color: node.style.borderColor ?? { r: 0, g: 0, b: 0 }, thickness: node.style.borderWidth ?? 1 })];
   if (node.node.tag === "ul" || node.node.tag === "ol") return [renderList(node, options, warnings)];
   if (node.node.tag === "table") return renderTable(node, options, warnings);
-  if (node.style.display === "grid") return [renderGrid(node, options, warnings)];
-  if (node.style.display === "flex") return [renderFlex(node, options, warnings)];
-  if (node.style.display === "inline" || node.style.display === "inline-block") {
+  if (node.style.display === "grid" || node.style.display === "inline-grid") return [renderGrid(node, options, warnings)];
+  if (node.style.display === "flex" || node.style.display === "inline-flex") return [renderFlex(node, options, warnings)];
+  if (isInlineContainer(node)) {
     return renderInlineGroup(node, options, warnings);
   }
   return [renderBlock(node, options, warnings)];
@@ -122,7 +122,8 @@ function hasInlineContent(node: StyledNode): boolean {
 
 function renderFloatNode(node: StyledElement, options: HtmlToBoxpdfOptions, warnings: string[]): BoxNode {
   if (node.node.tag === "table") return renderTable(node, options, warnings)[0] ?? renderBlock(node, options, warnings);
-  if (node.style.display === "flex") return renderFlex(node, options, warnings);
+  if (node.style.display === "flex" || node.style.display === "inline-flex") return renderFlex(node, options, warnings);
+  if (node.style.display === "grid" || node.style.display === "inline-grid") return renderGrid(node, options, warnings);
   return renderBlock(node, options, warnings);
 }
 
@@ -180,8 +181,13 @@ function renderFlex(node: StyledElement, options: HtmlToBoxpdfOptions, warnings:
 
 function renderGrid(node: StyledElement, options: HtmlToBoxpdfOptions, warnings: string[]): BoxNode {
   const children = node.children.filter(hasRenderedContent).flatMap((child) => renderNode(child, options, warnings));
-  const gridWidth = contentWidth(node) ?? options.width;
-  const tracks = resolveGridTracks(node.style.gridTemplateColumns, gridWidth, node.style.columnGap ?? node.style.gap ?? 0);
+  const gridGap = node.style.columnGap ?? node.style.gap ?? 0;
+  const gridWidth =
+    contentWidth(node) ??
+    (node.style.display === "inline-grid"
+      ? inlineGridIntrinsicWidth(children, node.style.gridTemplateColumns, gridGap, options.width)
+      : options.width);
+  const tracks = resolveGridTracks(node.style.gridTemplateColumns, gridWidth, gridGap);
   if (tracks.length === 0) return renderBlock(node, options, warnings);
   const rows: BoxNode[] = [];
   for (let index = 0; index < children.length; index += tracks.length) {
@@ -212,6 +218,20 @@ function renderGrid(node: StyledElement, options: HtmlToBoxpdfOptions, warnings:
     },
     ...rows
   );
+}
+
+function inlineGridIntrinsicWidth(children: BoxNode[], tracks: GridTrack[] | undefined, gap: number, parentWidth: number | undefined): number | undefined {
+  if (!tracks || tracks.length === 0) {
+    const widths = children.map((child) => measure(child, parentWidth ?? Number.POSITIVE_INFINITY).width);
+    return widths.length === 0 ? undefined : Math.max(0, ...widths);
+  }
+  const widths = tracks.map((track, trackIndex) => {
+    if (track.kind === "length") return track.value;
+    return children
+      .filter((_, childIndex) => childIndex % tracks.length === trackIndex)
+      .reduce((max, child) => Math.max(max, measure(child, parentWidth ?? Number.POSITIVE_INFINITY).width), 0);
+  });
+  return widths.reduce((sum, width) => sum + width, 0) + gap * Math.max(0, widths.length - 1);
 }
 
 function hasRenderedContent(node: StyledNode): boolean {
@@ -348,8 +368,8 @@ function collectInlineRuns(nodes: StyledNode[], options: HtmlToBoxpdfOptions, wa
       }
       continue;
     }
-    if (node.style.display === "inline-block") {
-      const rendered = renderInlineBlockNode(node, options, warnings);
+    if (isAtomicInlineContainer(node)) {
+      const rendered = renderAtomicInlineNode(node, options, warnings);
       const measured = measure(rendered, contentWidth(node) ?? options.width ?? Number.POSITIVE_INFINITY);
       runs.push(inlineNode(rendered, { width: measured.width, height: measured.height, verticalAlign: node.style.verticalAlign === "middle" ? "middle" : undefined }));
       continue;
@@ -361,7 +381,9 @@ function collectInlineRuns(nodes: StyledNode[], options: HtmlToBoxpdfOptions, wa
   return runs;
 }
 
-function renderInlineBlockNode(node: StyledElement, options: HtmlToBoxpdfOptions, warnings: string[]): BoxNode {
+function renderAtomicInlineNode(node: StyledElement, options: HtmlToBoxpdfOptions, warnings: string[]): BoxNode {
+  if (node.style.display === "inline-flex") return renderFlex(node, options, warnings);
+  if (node.style.display === "inline-grid") return renderGrid(node, options, warnings);
   return renderBlock(node, options, warnings);
 }
 
@@ -448,7 +470,15 @@ function tableRows(node: StyledElement): StyledElement[] {
 }
 
 function isInlineLike(node: StyledNode): boolean {
-  return "text" in node || node.style.display === "inline" || node.style.display === "inline-block";
+  return "text" in node || isInlineContainer(node);
+}
+
+function isInlineContainer(node: StyledElement): boolean {
+  return node.style.display === "inline" || isAtomicInlineContainer(node);
+}
+
+function isAtomicInlineContainer(node: StyledElement): boolean {
+  return node.style.display === "inline-block" || node.style.display === "inline-flex" || node.style.display === "inline-grid";
 }
 
 function inferColumns(rows: StyledElement[]): Array<{ width: `${number}fr` }> {

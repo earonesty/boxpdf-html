@@ -52,7 +52,7 @@ export interface ParsedHtml {
   stylesheets: string[];
 }
 
-export type Display = "block" | "inline" | "inline-block" | "flex" | "grid" | "none";
+export type Display = "block" | "inline" | "inline-block" | "flex" | "inline-flex" | "grid" | "inline-grid" | "none";
 export type GridTrack = { kind: "length"; value: number } | { kind: "percent"; value: number } | { kind: "fr"; value: number };
 export type CssLengthPercentage = { length: number; percent: number };
 

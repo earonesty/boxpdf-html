@@ -312,6 +312,25 @@ c</p>`,
     });
   });
 
+  it("maps inline-flex and inline-grid to atomic inline nodes", () => {
+    const result = htmlToBoxpdf(
+      `<style>
+        .pill{display:inline-flex;gap:4px;padding:2px 5px;background:#dcfce7;vertical-align:middle}
+        .grid{display:inline-grid;grid-template-columns:1fr 1fr;gap:2px;padding:2px;background:#dbeafe}
+      </style>
+      <p><span class="pill"><span>A</span><span>B</span></span> and <span class="grid"><span>1</span><span>2</span></span></p>`,
+      { font, width: 320 }
+    );
+    const block = result.nodes[0];
+    if (block?.kind !== "vstack") throw new Error("expected block");
+    const paragraphNode = block.children[0];
+    if (paragraphNode?.kind !== "paragraph") throw new Error("expected paragraph");
+    const inlineNodes = paragraphNode.runs.filter((item): item is Extract<typeof item, { node: unknown }> => "node" in item);
+    expect(inlineNodes).toHaveLength(2);
+    expect(inlineNodes[0]?.node.kind).toBe("hstack");
+    expect(inlineNodes[1]?.node.kind).toBe("vstack");
+  });
+
   it("maps simple CSS grids to row hstacks", () => {
     const result = htmlToBoxpdf(
       `<style>.grid{display:grid;grid-template-columns:1fr 2fr 60px;column-gap:10px;row-gap:8px;width:300px}.item{padding:4px}</style>

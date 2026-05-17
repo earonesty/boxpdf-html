@@ -80,8 +80,7 @@ function applyDeclaration(out: Partial<CssStyle>, property: string, rawValue: st
   const value = rawValue.trim().toLowerCase();
   switch (property.trim().toLowerCase()) {
     case "display":
-      if (["block", "inline", "inline-block", "flex", "grid", "none"].includes(value)) out.display = value as Display;
-      else if (value === "inline-grid") out.display = "grid";
+      if (["block", "inline", "inline-block", "flex", "inline-flex", "grid", "inline-grid", "none"].includes(value)) out.display = value as Display;
       break;
     case "float":
       if (value === "none" || value === "left" || value === "right") out.float = value;

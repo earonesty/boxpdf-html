@@ -39,6 +39,35 @@
     background: #f8fafc;
     vertical-align: middle;
   }
+  .inline-flex {
+    display: inline-flex;
+    gap: 4px;
+    padding: 3px 6px;
+    border: 1px solid #a16207;
+    background: #fef3c7;
+    color: #854d0e;
+    vertical-align: middle;
+  }
+  .dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 4px;
+    background: #16a34a;
+  }
+  .inline-grid {
+    display: inline-grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2px;
+    padding: 2px;
+    border: 1px solid #7c3aed;
+    background: #ede9fe;
+    vertical-align: middle;
+  }
+  .cell {
+    padding: 1px 4px;
+    background: #ffffff;
+  }
 </style>
 </head>
 <body>
@@ -46,5 +75,6 @@
   <p>Status <span class="badge">PAID</span> should stay as a single atomic styled badge inside text.</p>
   <p>Inline chips <span class="chip">Alpha</span><span class="chip">Beta</span> should preserve their box styling and margins.</p>
   <p>A taller inline block <span class="tall">wraps its own text</span> should move the whole line without flattening.</p>
+  <p>Inline flex <span class="inline-flex"><span class="dot"></span><span>Ready</span></span> and inline grid <span class="inline-grid"><span class="cell">A</span><span class="cell">B</span></span> should behave atomically.</p>
 </body>
 </html>
