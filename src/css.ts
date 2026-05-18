@@ -131,7 +131,8 @@ const supportedCssProperties = new Set([
   "white-space", "text-align", "text-decoration", "text-decoration-line", "text-transform", "text-indent", "vertical-align",
   "box-sizing", "position", "top", "right", "bottom", "left", "inset", "inset-block", "inset-inline", "inset-block-start", "inset-block-end", "inset-inline-start", "inset-inline-end",
   "z-index", "list-style", "list-style-type",
-  "width", "min-width", "max-width", "height", "aspect-ratio",
+  "width", "min-width", "max-width", "height", "min-height", "max-height", "aspect-ratio",
+  "align-self", "flex-wrap", "opacity", "letter-spacing",
   "margin", "margin-block", "margin-inline", "margin-block-start", "margin-block-end", "margin-inline-start", "margin-inline-end", "margin-top", "margin-right", "margin-bottom", "margin-left",
   "padding", "padding-block", "padding-inline", "padding-block-start", "padding-block-end", "padding-inline-start", "padding-inline-end", "padding-top", "padding-right", "padding-bottom", "padding-left",
   "gap", "column-gap", "grid-column-gap", "row-gap", "grid-row-gap",
@@ -405,6 +406,31 @@ function applyDeclaration(out: Partial<CssStyle>, property: string, rawValue: st
       break;
     case "height":
       out.height = parseLength(value, fontSize);
+      break;
+    case "min-height":
+      out.minHeight = parseLength(value, fontSize);
+      break;
+    case "max-height":
+      out.maxHeight = parseLength(value, fontSize);
+      break;
+    case "align-self":
+      if (value === "flex-start") out.alignSelf = "start";
+      else if (value === "flex-end") out.alignSelf = "end";
+      else if (["start", "center", "end", "stretch", "baseline"].includes(value)) {
+        out.alignSelf = value as CssStyle["alignSelf"];
+      }
+      break;
+    case "flex-wrap":
+      if (value === "wrap") out.flexWrap = "wrap";
+      else if (value === "nowrap") out.flexWrap = "nowrap";
+      break;
+    case "opacity": {
+      const n = Number(value);
+      if (Number.isFinite(n)) out.opacity = Math.max(0, Math.min(1, n));
+      break;
+    }
+    case "letter-spacing":
+      if (value !== "normal") out.letterSpacing = parseLength(value, fontSize);
       break;
     case "aspect-ratio":
       out.aspectRatio = parseAspectRatio(value);

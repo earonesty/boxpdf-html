@@ -123,6 +123,8 @@ export interface CssStyle {
   maxWidthPercent?: number;
   maxWidthCalc?: CssLengthPercentage;
   height?: number;
+  minHeight?: number;
+  maxHeight?: number;
   aspectRatio?: number;
   margin?: EdgesInput;
   marginAutoLeft?: boolean;
@@ -137,6 +139,10 @@ export interface CssStyle {
   textIndent?: number;
   listStyleType?: "disc" | "decimal" | "none";
   borderCollapse?: "separate" | "collapse";
+  alignSelf?: CssStyle["alignItems"];
+  flexWrap?: "wrap" | "nowrap";
+  opacity?: number;
+  letterSpacing?: number;
   gap?: number;
   columnGap?: number;
   rowGap?: number;

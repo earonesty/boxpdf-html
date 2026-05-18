@@ -742,12 +742,6 @@ c</p>`,
         value: "0 1px 2px #0003",
         count: 2,
         samples: [".shadow-sm { box-shadow: 0 1px 2px #0003 }", ".shadow-again { box-shadow: 0 1px 2px #0003 }"]
-      },
-      {
-        property: "letter-spacing",
-        value: ".025em",
-        count: 1,
-        samples: [".tracking-wide { letter-spacing: .025em }"]
       }
     ]);
   });
