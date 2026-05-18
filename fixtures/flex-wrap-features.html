@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Flex Wrap Features Demo</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      font-size: 12px;
+      color: #1a1a1a;
+      padding: 24px;
+      background: #f8f8f8;
+    }
+    h2 {
+      font-size: 14px;
+      font-weight: bold;
+      margin: 0 0 8px 0;
+      color: #333;
+      border-bottom: 1px solid #ccc;
+      padding-bottom: 4px;
+    }
+    .section {
+      background: #fff;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 16px;
+      margin-bottom: 20px;
+    }
+    .label {
+      font-size: 10px;
+      color: #888;
+      margin-bottom: 6px;
+    }
+
+    /* Feature 1: flex-wrap: wrap */
+    .wrap-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      width: 300px;
+      background: #e8f4e8;
+      padding: 8px;
+      border: 1px solid #99cc99;
+    }
+    .wrap-item {
+      background: #2a7a2a;
+      color: #fff;
+      padding: 8px 12px;
+      border-radius: 3px;
+      font-size: 11px;
+    }
+    .wrap-item.wide {
+      width: 120px;
+    }
+
+    /* Feature 2: min-height */
+    .min-height-demo {
+      display: flex;
+      gap: 12px;
+    }
+    .min-height-box {
+      width: 100px;
+      min-height: 60px;
+      background: #dbeafe;
+      border: 1px solid #93c5fd;
+      padding: 6px;
+      font-size: 10px;
+      color: #1e40af;
+    }
+
+    /* Feature 3: max-height */
+    .max-height-demo {
+      display: flex;
+      gap: 12px;
+    }
+    .max-height-box {
+      width: 140px;
+      max-height: 38px;
+      overflow: hidden;
+      background: #fef3c7;
+      border: 1px solid #f59e0b;
+      padding: 6px;
+      font-size: 10px;
+      color: #92400e;
+    }
+    .tall-content {
+      background: #fffbeb;
+      border: 1px solid #f59e0b;
+      padding: 6px;
+      width: 140px;
+      font-size: 10px;
+      color: #92400e;
+    }
+
+    /* Feature 4: align-self */
+    .align-self-container {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      height: 80px;
+      background: #f3e8ff;
+      border: 1px solid #c084fc;
+      padding: 8px;
+    }
+    .align-start-box {
+      background: #a855f7;
+      color: white;
+      padding: 6px 10px;
+      font-size: 10px;
+      align-self: flex-start;
+    }
+    .align-center-box {
+      background: #7c3aed;
+      color: white;
+      padding: 6px 10px;
+      font-size: 10px;
+      align-self: center;
+    }
+    .align-end-box {
+      background: #5b21b6;
+      color: white;
+      padding: 6px 10px;
+      font-size: 10px;
+      align-self: flex-end;
+    }
+
+    /* Feature 5: letter-spacing */
+    .letter-spacing-demo {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .ls-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .ls-label {
+      width: 80px;
+      font-size: 10px;
+      color: #666;
+    }
+    .ls-normal {
+      font-size: 12px;
+      letter-spacing: 0px;
+      color: #1a1a1a;
+    }
+    .ls-wide {
+      font-size: 12px;
+      letter-spacing: 2px;
+      color: #1a1a1a;
+    }
+    .ls-wider {
+      font-size: 12px;
+      letter-spacing: 4px;
+      color: #1a1a1a;
+    }
+    .ls-narrow {
+      font-size: 12px;
+      letter-spacing: 1px;
+      color: #1a1a1a;
+    }
+
+    /* Feature 6: opacity */
+    .opacity-demo {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+    }
+    .opacity-box {
+      width: 80px;
+      height: 60px;
+      background: #ef4444;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 11px;
+      font-weight: bold;
+    }
+    .opacity-100 { opacity: 1; }
+    .opacity-60  { opacity: 0.6; }
+    .opacity-30  { opacity: 0.3; }
+  </style>
+</head>
+<body>
+
+  <div class="section">
+    <h2>1. flex-wrap: wrap</h2>
+    <p class="label">Items wrap to next row when container is too narrow</p>
+    <div class="wrap-container">
+      <div class="wrap-item">Alpha</div>
+      <div class="wrap-item wide">Beta (wide)</div>
+      <div class="wrap-item">Gamma</div>
+      <div class="wrap-item">Delta</div>
+      <div class="wrap-item wide">Epsilon (wide)</div>
+      <div class="wrap-item">Zeta</div>
+      <div class="wrap-item">Eta</div>
+      <div class="wrap-item">Theta</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>2. min-height</h2>
+    <p class="label">Boxes expand to at least 60px tall even with short content</p>
+    <div class="min-height-demo">
+      <div class="min-height-box">Tiny text</div>
+      <div class="min-height-box">A bit more content here</div>
+      <div class="min-height-box">Short</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>3. max-height with overflow: hidden</h2>
+    <p class="label">Left box clips at 50px; right box shown without max-height for comparison</p>
+    <div class="max-height-demo">
+      <div class="max-height-box">
+        Line one of text<br>
+        Line two of text<br>
+        Line three of text<br>
+        Line four of text (clipped)
+      </div>
+      <div class="tall-content">
+        Line one of text<br>
+        Line two of text<br>
+        Line three of text<br>
+        Line four visible here
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>4. align-self</h2>
+    <p class="label">Three boxes with align-self: flex-start, center, flex-end in an 80px tall container</p>
+    <div class="align-self-container">
+      <div class="align-start-box">start</div>
+      <div class="align-center-box">center</div>
+      <div class="align-end-box">end</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>5. letter-spacing</h2>
+    <p class="label">The same text rendered at different letter-spacing values</p>
+    <div class="letter-spacing-demo">
+      <div class="ls-row">
+        <span class="ls-label">normal (0px)</span>
+        <span class="ls-normal">Hello World</span>
+      </div>
+      <div class="ls-row">
+        <span class="ls-label">1px</span>
+        <span class="ls-narrow">Hello World</span>
+      </div>
+      <div class="ls-row">
+        <span class="ls-label">2px</span>
+        <span class="ls-wide">Hello World</span>
+      </div>
+      <div class="ls-row">
+        <span class="ls-label">4px</span>
+        <span class="ls-wider">Hello World</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>6. opacity</h2>
+    <p class="label">Three identical red boxes at opacity 1.0, 0.6, and 0.3</p>
+    <div class="opacity-demo">
+      <div class="opacity-box opacity-100">1.0</div>
+      <div class="opacity-box opacity-60">0.6</div>
+      <div class="opacity-box opacity-30">0.3</div>
+    </div>
+  </div>
+
+</body>
+</html>

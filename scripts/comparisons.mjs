@@ -24,5 +24,6 @@ export const comparisons = [
   ["fixtures/text-transform.html", "artifacts/text-transform"],
   ["fixtures/white-space.html", "artifacts/white-space"],
   ["fixtures/website-css-wins.html", "artifacts/website-css-wins"],
-  ["fixtures/width-constraints.html", "artifacts/width-constraints"]
+  ["fixtures/width-constraints.html", "artifacts/width-constraints"],
+  ["fixtures/flex-wrap-features.html", "artifacts/flex-wrap-features"]
 ];

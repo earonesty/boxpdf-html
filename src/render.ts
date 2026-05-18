@@ -54,6 +54,8 @@ function renderBlock(node: StyledElement, options: HtmlToBoxpdfOptions, warnings
     {
       width: cssBoxWidth(node),
       height: cssBoxHeight(node),
+      minHeight: node.style.minHeight,
+      maxHeight: node.style.maxHeight,
       margin: node.style.margin,
       padding: layoutPadding(node),
       gap: node.style.gap ?? 0,
@@ -69,6 +71,8 @@ function renderBlock(node: StyledElement, options: HtmlToBoxpdfOptions, warnings
       bottom: node.style.bottom,
       left: node.style.left,
       zIndex: node.style.zIndex,
+      opacity: node.style.opacity,
+      alignSelf: node.style.alignSelf,
       align: stretch ? "stretch" : "start"
     },
     ...children
@@ -177,11 +181,14 @@ function renderFlex(node: StyledElement, options: HtmlToBoxpdfOptions, warnings:
   const style = {
     width,
     height: cssBoxHeight(node),
+    minHeight: node.style.minHeight,
+    maxHeight: node.style.maxHeight,
     margin: node.style.margin,
     padding: layoutPadding(node),
     gap: node.style.gap ?? 0,
     align: node.style.alignItems,
     justify: children.justify,
+    wrap: node.style.flexWrap === "wrap",
     background: node.style.background,
     backgroundImage: backgroundImage(node, options),
     border: border(node),
@@ -193,7 +200,9 @@ function renderFlex(node: StyledElement, options: HtmlToBoxpdfOptions, warnings:
     right: node.style.right,
     bottom: node.style.bottom,
     left: node.style.left,
-    zIndex: node.style.zIndex
+    zIndex: node.style.zIndex,
+    opacity: node.style.opacity,
+    alignSelf: node.style.alignSelf
   };
   return node.style.flexDirection.startsWith("row") ? hstack(style, ...children.nodes) : vstack(style, ...children.nodes);
 }
@@ -249,6 +258,8 @@ function renderGrid(node: StyledElement, options: HtmlToBoxpdfOptions, warnings:
     {
       width: cssBoxWidth(node),
       height: cssBoxHeight(node),
+      minHeight: node.style.minHeight,
+      maxHeight: node.style.maxHeight,
       margin: node.style.margin,
       padding: layoutPadding(node),
       gap: node.style.rowGap ?? node.style.gap ?? 0,
@@ -263,7 +274,9 @@ function renderGrid(node: StyledElement, options: HtmlToBoxpdfOptions, warnings:
       right: node.style.right,
       bottom: node.style.bottom,
       left: node.style.left,
-      zIndex: node.style.zIndex
+      zIndex: node.style.zIndex,
+      opacity: node.style.opacity,
+      alignSelf: node.style.alignSelf
     },
     ...rows
   );
@@ -881,7 +894,8 @@ function textOptions(node: StyledText, options: HtmlToBoxpdfOptions) {
     width: node.style.width,
     wrap: shouldWrap(node.style),
     align: node.style.textAlign,
-    margin: node.style.margin
+    margin: node.style.margin,
+    opacity: node.style.opacity
   };
 }
 
@@ -892,7 +906,8 @@ function runStyle(node: StyledText, options: HtmlToBoxpdfOptions): TextRunStyle 
     color: node.style.color ?? options.defaultColor,
     lineHeight: node.style.lineHeight,
     underline: node.style.textDecorationLine === "underline",
-    strikethrough: node.style.textDecorationLine === "line-through"
+    strikethrough: node.style.textDecorationLine === "line-through",
+    letterSpacing: node.style.letterSpacing
   };
 }
 
