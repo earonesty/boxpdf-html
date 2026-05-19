@@ -232,59 +232,6 @@ console.log(result.diagnostics?.unsupportedCss);
 
 Unsupported CSS diagnostics are aggregated by property/value pair and include selector samples. Profile events cover parsing, CSS, style computation, render-tree construction, and output node counts.
 
-## Release
-
-First publish is manual, because npm needs the package to exist before trusted publishing can be attached:
-
-```sh
-pnpm install --frozen-lockfile
-pnpm run typecheck
-pnpm run test
-pnpm run build
-pnpm run pack:release
-cd .pack
-npm publish --access public
-```
-
-Then configure npm trusted publishing for future releases:
-
-```sh
-npm trust github boxpdf-html --repo earonesty/boxpdf-html --file release.yml
-```
-
-If your npm CLI does not support that command, configure it in npmjs.com package settings:
-
-- Publisher: GitHub Actions
-- Owner: `earonesty`
-- Repository: `boxpdf-html`
-- Workflow filename: `release.yml`
-- Environment: blank
-
-Trusted publishing currently requires npm `11.5.1+` and Node `22.14+`; the `npm trust` CLI command itself requires npm `11.10+`. The release workflow uses Node 24 and upgrades npm before publishing. Future releases are tag-driven:
-
-```sh
-git tag v1.0.0
-git push origin v1.0.0
-```
-
-The workflow runs typecheck, tests, build, publishes with OIDC/provenance, and creates a GitHub Release with generated notes.
-
-## Development
-
-During local development, `package.json` depends on the adjacent checkout:
-
-```json
-"boxpdf": "file:.."
-```
-
-Release packing is done through `scripts/prepare-publish.mjs`, which stages the package and rewrites the published manifest to a real semver dependency:
-
-```json
-"boxpdf": "^1.7.0"
-```
-
-The script fails if a packed or published manifest would contain a local `file:` dependency.
-
 Useful commands:
 
 ```sh
