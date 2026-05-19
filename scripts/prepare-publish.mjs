@@ -10,11 +10,7 @@ const npmCache = join(stage, ".npm-cache");
 const args = new Set(process.argv.slice(2));
 
 const rootPkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
-const parentPkgPath = resolve(root, "..", "package.json");
-const parentPkg = existsSync(parentPkgPath)
-  ? JSON.parse(readFileSync(parentPkgPath, "utf8"))
-  : undefined;
-const boxpdfVersion = process.env.BOXPDF_DEP_VERSION ?? `^${parentPkg?.version ?? "1.6.1"}`;
+const boxpdfVersion = process.env.BOXPDF_DEP_VERSION ?? rootPkg.dependencies?.boxpdf;
 
 if (!boxpdfVersion || boxpdfVersion.startsWith("file:")) {
   throw new Error(`Refusing to prepare package with invalid boxpdf dependency: ${boxpdfVersion}`);

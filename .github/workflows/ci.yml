@@ -14,22 +14,16 @@ env:
 
 defaults:
   run:
-    working-directory: boxpdf/html
+    working-directory: boxpdf-html
 
 jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout boxpdf
-        uses: actions/checkout@v4
-        with:
-          repository: earonesty/boxpdf
-          path: boxpdf
-
       - name: Checkout boxpdf-html
         uses: actions/checkout@v4
         with:
-          path: boxpdf/html
+          path: boxpdf-html
 
       - name: Set up pnpm
         uses: pnpm/action-setup@v4
@@ -42,15 +36,7 @@ jobs:
         with:
           node-version: "24"
           cache: pnpm
-          cache-dependency-path: boxpdf/html/pnpm-lock.yaml
-
-      - name: Install boxpdf
-        run: pnpm install --frozen-lockfile
-        working-directory: boxpdf
-
-      - name: Build boxpdf
-        run: pnpm run build
-        working-directory: boxpdf
+          cache-dependency-path: boxpdf-html/pnpm-lock.yaml
 
       - name: Install
         run: pnpm install --frozen-lockfile
