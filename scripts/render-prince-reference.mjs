@@ -4,7 +4,7 @@ import { dirname, extname, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { fontFamily, htmlToBoxpdf } from "../dist/index.js";
-import { loadFont, renderFlow } from "../../dist/index.js";
+import { loadFont, renderFlow } from "boxpdf";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const coreRequire = createRequire(resolve(root, "../package.json"));

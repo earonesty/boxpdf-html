@@ -1,6 +1,6 @@
 {
   "name": "boxpdf-html",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Readable HTML-to-PDF translator built on boxpdf.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -57,7 +57,7 @@
     "url": "https://github.com/earonesty/boxpdf-html/issues"
   },
   "dependencies": {
-    "boxpdf": "file:..",
+    "boxpdf": "^1.8.0",
     "css-tree": "^3.1.0",
     "parse5": "^8.0.0",
     "pdf-lib": "^1.17.1"
