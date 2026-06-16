@@ -46,7 +46,43 @@ The CLI defaults to pdf-lib's built-in Helvetica family. Use real embedded fonts
 
 ## API
 
-`htmlToBoxpdf` turns HTML into normal boxpdf nodes. You render those nodes with `renderFlow`.
+### `htmlToPdf` — one call to bytes
+
+`htmlToPdf(html, options?)` is the simplest path: it creates the document, embeds fonts, renders, and returns the PDF bytes. Fonts default to the built-in Helvetica family, so the minimal call needs no setup.
+
+```ts
+import { htmlToPdf } from "boxpdf-html";
+
+const bytes = await htmlToPdf("<h1>Invoice</h1><p>Thanks for your order.</p>");
+```
+
+Pass embedded fonts (via `loadFont`) and a `resolveImage` callback for production output:
+
+```ts
+import { readFile } from "node:fs/promises";
+import { PDFDocument } from "pdf-lib";
+import { loadFont, loadImage } from "boxpdf";
+import { htmlToPdf } from "boxpdf-html";
+
+const pdf = await PDFDocument.create();
+const inter = await loadFont(pdf, await readFile("Inter-Regular.ttf"));
+const interBold = await loadFont(pdf, await readFile("Inter-Bold.ttf"));
+const logo = await loadImage(pdf, await readFile("logo.png"));
+
+const bytes = await htmlToPdf(await readFile("invoice.html", "utf8"), {
+  pdf,                       // reuse the document you embedded into
+  font: inter,
+  boldFont: interBold,
+  resolveImage: ({ url }) => (url === "logo.png" ? logo : undefined),
+  margin: 40
+});
+```
+
+Options: `font` / `boldFont` / `italicFont` / `boldItalicFont` (default to Helvetica), `pdf` (render into an existing document), `margin` (default 40), `size` (default US Letter), `width` (CSS containing-block width; defaults to the page's content width), `debug`, plus everything `htmlToBoxpdf` accepts (`resolveFont`, `resolveImage`, `baseUrl`, `defaultFontSize`, `defaultColor`, `diagnostics`, `profile`).
+
+### `htmlToBoxpdf` — the nodes, for full control
+
+`htmlToBoxpdf` turns HTML into normal boxpdf nodes without rendering. Reach for it when you need the nodes themselves, the `warnings`/`diagnostics`, multiple render passes, or `renderFlow` headers/footers.
 
 ```ts
 import { readFile } from "node:fs/promises";
@@ -65,20 +101,15 @@ const result = htmlToBoxpdf(html, {
   font: inter,
   boldFont: interBold,
   resolveFont: fontFamily({
-    Inter: {
-      normal: inter,
-      bold: interBold
-    },
-    "sans-serif": {
-      normal: inter,
-      bold: interBold
-    }
+    Inter: { normal: inter, bold: interBold },
+    "sans-serif": { normal: inter, bold: interBold }
   }),
   resolveImage: ({ url }) => (url === "logo.png" ? logo : undefined),
   baseUrl: process.cwd(),
   width: 532
 });
 
+console.log(result.warnings);
 await renderFlow(pdf, result.nodes, { margin: 40 });
 const bytes = await pdf.save();
 ```

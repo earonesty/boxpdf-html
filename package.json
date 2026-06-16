@@ -1,6 +1,6 @@
 {
   "name": "boxpdf-html",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "description": "Readable HTML-to-PDF translator built on boxpdf.",
   "type": "module",
   "main": "./dist/index.cjs",
