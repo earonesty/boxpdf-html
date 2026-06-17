@@ -44,6 +44,24 @@ boxpdf-html input.html output.pdf --profile
 
 The CLI defaults to pdf-lib's built-in Helvetica family. Use real embedded fonts for production output when brand matching, unicode coverage, or exact metrics matter.
 
+## MCP server
+
+`boxpdf-html mcp` is a stdio [MCP](https://modelcontextprotocol.io) server for AI agents. It's batteries-included: an `html_to_pdf` tool plus the full boxpdf library docs, so an agent never has to add a second server.
+
+```sh
+claude mcp add boxpdf-html -- npx -y boxpdf-html mcp
+```
+
+**Tools**
+
+- `html_to_pdf` — render an HTML string (and optional `css`) to a PDF. Writes to `outputPath`, or returns the PDF inline as a base64 resource. Always returns `warnings` and `unsupportedCss` diagnostics so the agent can fix its input.
+  - Args: `html` (required), `css`, `outputPath`, `size` (`Letter`/`A4`/`Legal`/`Tabloid`, default `Letter`), `margin` (default 40), `baseUrl`, `fonts: { regular, bold, italic, boldItalic }` (TTF/OTF paths), `allowRemote` (default `false` — http(s) image fetches are blocked unless enabled), `debug`.
+- `boxpdf_docs` — focused guidance for building PDFs with the libraries directly. `topic`: `quickstart` (default), `fonts`, `themes`, `tables`, `pagination`, `streaming`, `html-api`, `cloudflare`.
+
+**Resources**: `boxpdf-html://guide`, `boxpdf-html://readme`, `boxpdf://readme`, and the five `boxpdf://templates/<name>` sources (receipt, boarding-pass, resume, order-confirmation, certificate).
+
+The server runs no JavaScript and (by default) makes no network requests. `outputPath` writes with the agent's filesystem permissions; without it, PDFs over 1 MB are summarized rather than inlined.
+
 ## API
 
 ### `htmlToPdf` — one call to bytes
