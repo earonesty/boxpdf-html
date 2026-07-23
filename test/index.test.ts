@@ -739,6 +739,60 @@ c</p>`,
     ]);
   });
 
+  it("maps common CSS rotation forms onto box paint rotation", () => {
+    const result = htmlToBoxpdf(
+      `<style>
+        .degrees{transform:rotate(45deg)}
+        .radians{transform:rotateZ(1.5707963267948966rad)}
+        .turns{rotate:-.25turn}
+        .grads{rotate:100grad}
+      </style>
+      <div class="degrees">A</div>
+      <div class="radians">B</div>
+      <div class="turns">C</div>
+      <div class="grads">D</div>`,
+      { font, width: 320 }
+    );
+
+    expect(result.nodes[0]).toMatchObject({ kind: "vstack", style: { transform: [{ kind: "rotate", degrees: 45 }] } });
+    expect(result.nodes[1]).toMatchObject({ kind: "vstack", style: { transform: [{ kind: "rotate", degrees: 90 }] } });
+    expect(result.nodes[2]).toMatchObject({ kind: "vstack", style: { transform: [{ kind: "rotate", degrees: -90 }] } });
+    expect(result.nodes[3]).toMatchObject({ kind: "vstack", style: { transform: [{ kind: "rotate", degrees: 90 }] } });
+  });
+
+  it("preserves standalone transform ordering, origins, percentages, matrix, and skew", () => {
+    const result = htmlToBoxpdf(
+      `<div style="
+        width:200px;height:80px;
+        translate:10px 25%;
+        rotate:30deg;
+        scale:150% .5;
+        transform-origin:left bottom;
+        transform:translateX(calc(50% - 10px)) scaleY(2) skew(10deg,-5deg) matrix(1,.2,.3,1,4,6)
+      ">Combined</div>`,
+      { font, width: 320 }
+    );
+
+    expect(result.nodes[0]).toMatchObject({
+      kind: "vstack",
+      style: {
+        transformOrigin: {
+          x: { length: 0, percent: 0 },
+          y: { length: 0, percent: 1 }
+        },
+        transform: [
+          { kind: "translate", x: { length: 7.5, percent: 0 }, y: { length: 0, percent: 0.25 } },
+          { kind: "rotate", degrees: 30 },
+          { kind: "scale", x: 1.5, y: 0.5 },
+          { kind: "translate", x: { length: -7.5, percent: 0.5 }, y: { length: 0, percent: 0 } },
+          { kind: "scale", x: 1, y: 2 },
+          { kind: "skew", xDegrees: 10, yDegrees: -5 },
+          { kind: "matrix", a: 1, b: 0.2, c: 0.3, d: 1, e: 3, f: 4.5 }
+        ]
+      }
+    });
+  });
+
   it("keeps Tailwind unsupported CSS diagnostics focused on utilities", () => {
     const result = htmlToBoxpdf(
       `<style>

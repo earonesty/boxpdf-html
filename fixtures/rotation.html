@@ -1,0 +1,57 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Rotation comparison</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: #172033;
+      font-family: Arial, sans-serif;
+      font-size: 14px;
+    }
+    h1 { margin: 0 0 18px; font-size: 24px; }
+    .stage {
+      position: relative;
+      width: 680px;
+      height: 460px;
+      overflow: hidden;
+      background: #f3f6fb;
+      border: 1px solid #ccd5e3;
+    }
+    .axis-x, .axis-y {
+      position: absolute;
+      background: #d6deea;
+    }
+    .axis-x { left: 0; top: 229px; width: 680px; height: 1px; }
+    .axis-y { left: 339px; top: 0; width: 1px; height: 460px; }
+    .card {
+      position: absolute;
+      width: 180px;
+      height: 92px;
+      padding: 14px;
+      color: #14305c;
+      background: #dbeafe;
+      border: 2px solid #2563eb;
+      border-radius: 8px;
+    }
+    .card strong { display: block; margin-bottom: 5px; font-size: 17px; }
+    .control { left: 55px; top: 55px; }
+    .degrees { right: 55px; top: 55px; transform: rotate(18deg); }
+    .turns { left: 55px; bottom: 55px; rotate: -.05turn; }
+    .radians { right: 55px; bottom: 55px; transform: rotateZ(1.5707963267948966rad); }
+  </style>
+</head>
+<body>
+  <h1>CSS rotation</h1>
+  <div class="stage">
+    <div class="axis-x"></div>
+    <div class="axis-y"></div>
+    <div class="card control"><strong>Control</strong>No transform</div>
+    <div class="card degrees"><strong>18 degrees</strong>Clockwise transform</div>
+    <div class="card turns"><strong>−0.05 turn</strong>Counter-clockwise</div>
+    <div class="card radians"><strong>π / 2 radians</strong>Quarter turn</div>
+  </div>
+</body>
+</html>

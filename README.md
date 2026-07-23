@@ -224,7 +224,7 @@ Supported Tailwind patterns include common spacing, color, text, border, radius,
 Tailwind gotchas:
 
 - Responsive/state variants are parsed as CSS; there is no viewport interaction. Choose a single generated CSS target for the PDF you want.
-- `shadow-*`, transforms, filters, transitions, and browser-only effects are either ignored or reported as unsupported. The PDF should remain readable.
+- Two-dimensional transforms support ordered `translate`, `scale`, `rotate`, `skew`, and `matrix` function lists, their X/Y variants, `transform-origin`, and the standalone `translate`, `rotate`, and `scale` properties. Length/percentage translations and `deg`, `grad`, `rad`, and `turn` angles are supported. Three-dimensional transforms, shadows, filters, transitions, and browser-only effects are ignored or reported as unsupported.
 - Tailwind preflight resets are mostly harmless. Diagnostics intentionally focus on utility selectors instead of noisy base selectors.
 - If text layout matters, use the same fonts in Tailwind design review and PDF rendering.
 

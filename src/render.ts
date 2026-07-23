@@ -50,33 +50,32 @@ function renderNode(node: StyledNode, options: HtmlToBoxpdfOptions, warnings: st
 
 function renderBlock(node: StyledElement, options: HtmlToBoxpdfOptions, warnings: string[], stretch = node.style.display === "block"): BoxNode {
   const children = renderBlockChildren(node, options, warnings);
-  return vstack(
-    {
-      width: cssBoxWidth(node),
-      height: cssBoxHeight(node),
-      minHeight: node.style.minHeight,
-      maxHeight: node.style.maxHeight,
-      margin: node.style.margin,
-      padding: layoutPadding(node),
-      gap: node.style.gap ?? 0,
-      background: node.style.background,
-      backgroundImage: backgroundImage(node, options),
-      border: border(node),
-      borderSides: node.style.borderSides,
-      borderRadius: node.style.borderRadius,
-      overflow: node.style.overflow,
-      position: node.style.position,
-      top: node.style.top,
-      right: node.style.right,
-      bottom: node.style.bottom,
-      left: node.style.left,
-      zIndex: node.style.zIndex,
-      opacity: node.style.opacity,
-      alignSelf: node.style.alignSelf,
-      align: stretch ? "stretch" : "start"
-    },
-    ...children
-  );
+  const style = {
+    width: cssBoxWidth(node),
+    height: cssBoxHeight(node),
+    minHeight: node.style.minHeight,
+    maxHeight: node.style.maxHeight,
+    margin: node.style.margin,
+    padding: layoutPadding(node),
+    gap: node.style.gap ?? 0,
+    background: node.style.background,
+    backgroundImage: backgroundImage(node, options),
+    border: border(node),
+    borderSides: node.style.borderSides,
+    borderRadius: node.style.borderRadius,
+    overflow: node.style.overflow,
+    position: node.style.position,
+    top: node.style.top,
+    right: node.style.right,
+    bottom: node.style.bottom,
+    left: node.style.left,
+    zIndex: node.style.zIndex,
+    opacity: node.style.opacity,
+    ...paintTransform(node.style),
+    alignSelf: node.style.alignSelf,
+    align: stretch ? "stretch" as const : "start" as const
+  };
+  return vstack(style, ...children);
 }
 
 function renderBlockChildren(node: StyledElement, options: HtmlToBoxpdfOptions, warnings: string[]): BoxNode[] {
@@ -202,6 +201,7 @@ function renderFlex(node: StyledElement, options: HtmlToBoxpdfOptions, warnings:
     left: node.style.left,
     zIndex: node.style.zIndex,
     opacity: node.style.opacity,
+    ...paintTransform(node.style),
     alignSelf: node.style.alignSelf
   };
   return node.style.flexDirection.startsWith("row") ? hstack(style, ...children.nodes) : vstack(style, ...children.nodes);
@@ -254,32 +254,31 @@ function renderGrid(node: StyledElement, options: HtmlToBoxpdfOptions, warnings:
   const tracks = resolveGridTracks(node.style.gridTemplateColumns, gridWidth, gridGap);
   if (tracks.length === 0) return renderBlock(node, options, warnings);
   const rows = gridRows(node, tracks, options, warnings);
-  return vstack(
-    {
-      width: cssBoxWidth(node),
-      height: cssBoxHeight(node),
-      minHeight: node.style.minHeight,
-      maxHeight: node.style.maxHeight,
-      margin: node.style.margin,
-      padding: layoutPadding(node),
-      gap: node.style.rowGap ?? node.style.gap ?? 0,
-      background: node.style.background,
-      backgroundImage: backgroundImage(node, options),
-      border: border(node),
-      borderSides: node.style.borderSides,
-      borderRadius: node.style.borderRadius,
-      overflow: node.style.overflow,
-      position: node.style.position,
-      top: node.style.top,
-      right: node.style.right,
-      bottom: node.style.bottom,
-      left: node.style.left,
-      zIndex: node.style.zIndex,
-      opacity: node.style.opacity,
-      alignSelf: node.style.alignSelf
-    },
-    ...rows
-  );
+  const style = {
+    width: cssBoxWidth(node),
+    height: cssBoxHeight(node),
+    minHeight: node.style.minHeight,
+    maxHeight: node.style.maxHeight,
+    margin: node.style.margin,
+    padding: layoutPadding(node),
+    gap: node.style.rowGap ?? node.style.gap ?? 0,
+    background: node.style.background,
+    backgroundImage: backgroundImage(node, options),
+    border: border(node),
+    borderSides: node.style.borderSides,
+    borderRadius: node.style.borderRadius,
+    overflow: node.style.overflow,
+    position: node.style.position,
+    top: node.style.top,
+    right: node.style.right,
+    bottom: node.style.bottom,
+    left: node.style.left,
+    zIndex: node.style.zIndex,
+    opacity: node.style.opacity,
+    ...paintTransform(node.style),
+    alignSelf: node.style.alignSelf
+  };
+  return vstack(style, ...rows);
 }
 
 interface GridCell {
@@ -501,7 +500,8 @@ function renderList(node: StyledElement, options: HtmlToBoxpdfOptions, warnings:
     {
       margin: node.style.margin,
       padding: { ...listPadding, left: leftPadding },
-      gap: node.style.gap ?? 0
+      gap: node.style.gap ?? 0,
+      ...paintTransform(node.style)
     },
     ...items.flatMap((item, index) => renderListItem(item, index, node.style.listStyleType, markerWidth, options, warnings))
   );
@@ -589,21 +589,20 @@ function renderImageForLayout(node: StyledElement, options: HtmlToBoxpdfOptions,
   if (!hasImageBoxStyling(node)) return renderImageNode(node, options, warnings);
   const content = renderImageContent(node, options, warnings, undefined, false);
   if (!content) return undefined;
-  return vstack(
-    {
-      width: cssBoxWidth(node),
-      height: cssBoxHeight(node),
-      margin: node.style.margin,
-      padding: layoutPadding(node),
-      background: node.style.background,
-      border: border(node),
-      borderSides: node.style.borderSides,
-      borderRadius: node.style.borderRadius,
-      overflow: node.style.overflow,
-      shrink: 0
-    },
-    content
-  );
+  const style = {
+    width: cssBoxWidth(node),
+    height: cssBoxHeight(node),
+    margin: node.style.margin,
+    padding: layoutPadding(node),
+    background: node.style.background,
+    border: border(node),
+    borderSides: node.style.borderSides,
+    borderRadius: node.style.borderRadius,
+    overflow: node.style.overflow,
+    ...paintTransform(node.style),
+    shrink: 0
+  };
+  return vstack(style, content);
 }
 
 function renderImageContent(
@@ -653,6 +652,7 @@ function hasImageBoxStyling(node: StyledElement): boolean {
       node.style.borderWidth ||
       node.style.borderSides ||
       node.style.borderRadius ||
+      hasPaintTransform(node.style) ||
       node.style.padding ||
       node.style.overflow
   );
@@ -731,31 +731,37 @@ function renderTable(node: StyledElement, options: HtmlToBoxpdfOptions, warnings
     warnings.push("table without direct tr children was flattened as a block");
     return [renderBlock(node, options, warnings)];
   }
-  return [
-    table({
-      width: cssBoxWidth(node) ?? options.width,
-      columns: inferColumns(rows),
-      columnGap: 0,
-      borderCollapse: node.style.borderCollapse,
-      margin: node.style.margin,
-      rows: rows.map((row) =>
-        row.children
-          .filter((child): child is StyledElement => !("text" in child) && (child.node.tag === "td" || child.node.tag === "th"))
-          .map((cell) => ({
-            content: renderCellContent(cell, options, warnings),
-            padding: layoutPadding(cell, 4),
-            background: cell.style.background,
-            backgroundImage: backgroundImage(cell, options),
-            border: border(cell),
-            borderSides: cell.style.borderSides,
-            borderRadius: cell.style.borderRadius,
-            overflow: cell.style.overflow,
-            align: cell.style.textAlign,
-            valign: cell.style.verticalAlign === "middle" ? "middle" : "top"
-          }))
-      )
-    })
-  ];
+  const transformed = hasPaintTransform(node.style);
+  const rendered = table({
+    width: cssBoxWidth(node) ?? options.width,
+    columns: inferColumns(rows),
+    columnGap: 0,
+    borderCollapse: node.style.borderCollapse,
+    margin: transformed ? undefined : node.style.margin,
+    rows: rows.map((row) =>
+      row.children
+        .filter((child): child is StyledElement => !("text" in child) && (child.node.tag === "td" || child.node.tag === "th"))
+        .map((cell) => ({
+          content: renderCellContent(cell, options, warnings),
+          padding: layoutPadding(cell, 4),
+          background: cell.style.background,
+          backgroundImage: backgroundImage(cell, options),
+          border: border(cell),
+          borderSides: cell.style.borderSides,
+          borderRadius: cell.style.borderRadius,
+          overflow: cell.style.overflow,
+          align: cell.style.textAlign,
+          valign: cell.style.verticalAlign === "middle" ? "middle" : "top"
+        }))
+    )
+  });
+  if (!transformed) return [rendered];
+  const style = {
+    width: cssBoxWidth(node) ?? options.width,
+    margin: node.style.margin,
+    ...paintTransform(node.style)
+  };
+  return [vstack(style, rendered)];
 }
 
 function renderCellContent(cell: StyledElement, options: HtmlToBoxpdfOptions, warnings: string[]): BoxNode {
@@ -940,6 +946,28 @@ function border(node: StyledElement) {
   return { width: node.style.borderWidth, color: node.style.borderColor };
 }
 
+function paintTransform(style: StyledElement["style"]) {
+  const transform = [
+    ...(style.translate ? [{ kind: "translate" as const, ...style.translate }] : []),
+    ...(style.rotate !== undefined ? [{ kind: "rotate" as const, degrees: style.rotate }] : []),
+    ...(style.scale ? [{ kind: "scale" as const, ...style.scale }] : []),
+    ...(style.transform ?? [])
+  ];
+  return {
+    transform: transform.length > 0 ? transform : undefined,
+    transformOrigin: style.transformOrigin
+  };
+}
+
+function hasPaintTransform(style: StyledElement["style"]): boolean {
+  return Boolean(
+    style.translate ||
+      style.rotate !== undefined ||
+      style.scale ||
+      (style.transform && style.transform.length > 0)
+  );
+}
+
 function hasBoxStyling(node: StyledElement): boolean {
   return Boolean(
     node.style.background ||
@@ -947,6 +975,7 @@ function hasBoxStyling(node: StyledElement): boolean {
       node.style.borderWidth ||
       node.style.borderSides ||
       node.style.borderRadius ||
+      hasPaintTransform(node.style) ||
       node.style.padding ||
       node.style.width !== undefined ||
       node.style.height !== undefined

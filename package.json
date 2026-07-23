@@ -1,6 +1,6 @@
 {
   "name": "boxpdf-html",
-  "version": "1.3.1",
+  "version": "1.4.0",
   "mcpName": "io.github.earonesty/boxpdf-html",
   "description": "Readable HTML-to-PDF translator built on boxpdf.",
   "type": "module",
@@ -25,6 +25,7 @@
   "scripts": {
     "build": "tsup",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "typecheck": "tsc --noEmit",
     "compare:prince": "pnpm run build && node scripts/render-prince-reference.mjs",
     "visual:regenerate": "pnpm run build && node scripts/render-all-comparisons.mjs",
@@ -58,7 +59,7 @@
     "url": "https://github.com/earonesty/boxpdf-html/issues"
   },
   "dependencies": {
-    "boxpdf": "^1.8.0",
+    "boxpdf": "^1.10.0",
     "css-tree": "^3.1.0",
     "parse5": "^8.0.0",
     "pdf-lib": "^1.17.1"
@@ -66,6 +67,7 @@
   "devDependencies": {
     "@tailwindcss/cli": "^4.3.0",
     "@types/node": "^22.19.19",
+    "@vitest/coverage-v8": "4.1.6",
     "tailwindcss": "^4.3.0",
     "tsup": "^8.5.1",
     "typescript": "^5.9.3",

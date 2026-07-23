@@ -86,6 +86,12 @@ export type Display =
   | "none";
 export type GridTrack = { kind: "length"; value: number } | { kind: "percent"; value: number } | { kind: "fr"; value: number };
 export type CssLengthPercentage = { length: number; percent: number };
+export type CssTransform =
+  | { kind: "translate"; x: CssLengthPercentage; y: CssLengthPercentage }
+  | { kind: "scale"; x: number; y: number }
+  | { kind: "rotate"; degrees: number }
+  | { kind: "skew"; xDegrees: number; yDegrees: number }
+  | { kind: "matrix"; a: number; b: number; c: number; d: number; e: number; f: number };
 
 export interface CssStyle {
   display: Display;
@@ -142,6 +148,12 @@ export interface CssStyle {
   alignSelf?: CssStyle["alignItems"];
   flexWrap?: "wrap" | "nowrap";
   opacity?: number;
+  /** Clockwise rotation in degrees, resolved from CSS rotate/transform. */
+  rotate?: number;
+  translate?: { x: CssLengthPercentage; y: CssLengthPercentage };
+  scale?: { x: number; y: number };
+  transform?: CssTransform[];
+  transformOrigin?: { x: CssLengthPercentage; y: CssLengthPercentage };
   letterSpacing?: number;
   gap?: number;
   columnGap?: number;
