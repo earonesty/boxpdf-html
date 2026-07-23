@@ -662,6 +662,7 @@ function parseAngle(value: string): number | undefined {
 }
 
 function parseRotate(value: string): number | undefined {
+  if (topLevelCommaIndex(value) !== -1) return undefined;
   const args = splitTransformArgs(value);
   if (args.length === 1) return parseAngle(args[0] ?? "");
   if (args.length !== 2) return undefined;
@@ -773,6 +774,14 @@ function parseTransformOrigin(value: string, fontSize: number): CssStyle["transf
     return first === "top" || first === "bottom"
       ? parseTransformOriginPair("center", first, fontSize)
       : parseTransformOriginPair(first, "center", fontSize);
+  }
+  if (first === "top" || first === "bottom") {
+    const offset = parseLengthPercentage(second, fontSize);
+    if (offset) {
+      return offset.percent === 0
+        ? parseTransformOriginPair("center", first, fontSize)
+        : undefined;
+    }
   }
   return (
     parseTransformOriginPair(first, second, fontSize) ??

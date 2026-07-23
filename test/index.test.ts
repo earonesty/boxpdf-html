@@ -801,7 +801,8 @@ c</p>`,
         rotate:20deg;rotate:invalid;
         scale:150%;scale:invalid;
         transform-origin:left top;transform-origin:invalid invalid
-      ">Fallbacks</div>`,
+      ">Fallbacks</div>
+      <div style="rotate:20deg;rotate:z, 45deg">Invalid comma</div>`,
       { font, width: 320 }
     );
 
@@ -820,12 +821,19 @@ c</p>`,
         ]
       }
     });
+    expect(result.nodes[1]).toMatchObject({
+      kind: "vstack",
+      style: {
+        transform: [{ kind: "rotate", degrees: 20 }]
+      }
+    });
   });
 
   it("accepts reordered transform-origin keywords and 2D z-axis rotations", () => {
     const result = htmlToBoxpdf(
       `<div style="transform-origin:center left;rotate:z 45deg">Left</div>
-       <div style="transform-origin:center right;rotate:45deg z">Right</div>`,
+       <div style="transform-origin:center right;rotate:45deg z">Right</div>
+       <div style="transform-origin:top 10px;rotate:15deg">Top with z-offset</div>`,
       { font, width: 320 }
     );
 
@@ -847,6 +855,16 @@ c</p>`,
           y: { length: 0, percent: 0.5 }
         },
         transform: [{ kind: "rotate", degrees: 45 }]
+      }
+    });
+    expect(result.nodes[2]).toMatchObject({
+      kind: "vstack",
+      style: {
+        transformOrigin: {
+          x: { length: 0, percent: 0.5 },
+          y: { length: 0, percent: 0 }
+        },
+        transform: [{ kind: "rotate", degrees: 15 }]
       }
     });
   });
