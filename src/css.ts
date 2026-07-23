@@ -429,21 +429,47 @@ function applyDeclaration(out: Partial<CssStyle>, property: string, rawValue: st
       if (Number.isFinite(n)) out.opacity = Math.max(0, Math.min(1, n));
       break;
     }
-    case "rotate":
-      out.rotate = value === "none" ? undefined : parseAngle(value);
+    case "rotate": {
+      if (value === "none") {
+        out.rotate = undefined;
+        break;
+      }
+      const rotate = parseRotate(value);
+      if (rotate !== undefined) out.rotate = rotate;
       break;
-    case "translate":
-      out.translate = value === "none" ? undefined : parseTranslate(value, fontSize);
+    }
+    case "translate": {
+      if (value === "none") {
+        out.translate = undefined;
+        break;
+      }
+      const translate = parseTranslate(value, fontSize);
+      if (translate !== undefined) out.translate = translate;
       break;
-    case "scale":
-      out.scale = value === "none" ? undefined : parseScale(value);
+    }
+    case "scale": {
+      if (value === "none") {
+        out.scale = undefined;
+        break;
+      }
+      const scale = parseScale(value);
+      if (scale !== undefined) out.scale = scale;
       break;
-    case "transform":
-      out.transform = value === "none" ? undefined : parseTransformList(rawValue, fontSize);
+    }
+    case "transform": {
+      if (value === "none") {
+        out.transform = undefined;
+        break;
+      }
+      const transform = parseTransformList(rawValue, fontSize);
+      if (transform !== undefined) out.transform = transform;
       break;
-    case "transform-origin":
-      out.transformOrigin = parseTransformOrigin(value, fontSize);
+    }
+    case "transform-origin": {
+      const transformOrigin = parseTransformOrigin(value, fontSize);
+      if (transformOrigin !== undefined) out.transformOrigin = transformOrigin;
       break;
+    }
     case "letter-spacing":
       if (value !== "normal") out.letterSpacing = parseLength(value, fontSize);
       break;
@@ -635,6 +661,16 @@ function parseAngle(value: string): number | undefined {
   }
 }
 
+function parseRotate(value: string): number | undefined {
+  if (topLevelCommaIndex(value) !== -1) return undefined;
+  const args = splitTransformArgs(value);
+  if (args.length === 1) return parseAngle(args[0] ?? "");
+  if (args.length !== 2) return undefined;
+  if (args[0] === "z") return parseAngle(args[1] ?? "");
+  if (args[1] === "z") return parseAngle(args[0] ?? "");
+  return undefined;
+}
+
 function parseTransformList(value: string, fontSize: number): CssTransform[] | undefined {
   const transforms: CssTransform[] = [];
   let index = 0;
@@ -733,19 +769,35 @@ function parseScaleFactor(value: string | undefined): number | undefined {
 function parseTransformOrigin(value: string, fontSize: number): CssStyle["transformOrigin"] {
   const args = splitTransformArgs(value);
   if (args.length < 1 || args.length > 2) return undefined;
-  let [first, second] = args;
-  if (args.length === 1 && (first === "top" || first === "bottom")) {
-    second = first;
-    first = "center";
-  } else {
-    second ??= "center";
+  const [first, second] = args;
+  if (second === undefined) {
+    return first === "top" || first === "bottom"
+      ? parseTransformOriginPair("center", first, fontSize)
+      : parseTransformOriginPair(first, "center", fontSize);
   }
-  if ((first === "top" || first === "bottom") && (second === "left" || second === "right" || second === "center")) {
-    [first, second] = [second, first];
+  if (first === "top" || first === "bottom") {
+    const offset = parseLengthPercentage(second, fontSize);
+    if (offset) {
+      return offset.percent === 0
+        ? parseTransformOriginPair("center", first, fontSize)
+        : undefined;
+    }
   }
-  const x = parseOriginComponent(first, "x", fontSize);
-  const y = parseOriginComponent(second, "y", fontSize);
-  return x && y ? { x, y } : undefined;
+  return (
+    parseTransformOriginPair(first, second, fontSize) ??
+    parseTransformOriginPair(second, first, fontSize)
+  );
+}
+
+function parseTransformOriginPair(
+  horizontal: string | undefined,
+  vertical: string | undefined,
+  fontSize: number
+): CssStyle["transformOrigin"] {
+  const x = parseOriginComponent(horizontal, "x", fontSize);
+  const y = parseOriginComponent(vertical, "y", fontSize);
+  if (!x || !y) return undefined;
+  return { x, y };
 }
 
 function parseOriginComponent(value: string | undefined, axis: "x" | "y", fontSize: number) {
