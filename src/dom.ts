@@ -41,7 +41,7 @@ function convertNode(
     if (css.trim()) stylesheets.push(css);
     return [];
   }
-  if (tag === "script" || tag === "noscript" || tag === "template") return [];
+  if (tag === "script" || tag === "noscript" || tag === "template" || tag === "title") return [];
   return [element];
 }
 

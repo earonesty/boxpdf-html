@@ -54,7 +54,19 @@ jobs:
       - name: Build
         run: pnpm run build
 
+      - name: Check npm package version
+        id: npm_version
+        run: |
+          PACKAGE="$(node -p "require('./package.json').name")"
+          VERSION="$(node -p "require('./package.json').version")"
+          if npm view "$PACKAGE@$VERSION" version >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Publish to npm
+        if: steps.npm_version.outputs.exists != 'true'
         run: node scripts/prepare-publish.mjs --publish
         env:
           NPM_CONFIG_PROVENANCE: "true"
