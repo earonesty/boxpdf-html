@@ -54,7 +54,27 @@ jobs:
       - name: Build
         run: pnpm run build
 
+      - name: Check npm package version
+        id: npm_version
+        run: |
+          PACKAGE="$(node -p "require('./package.json').name")"
+          VERSION="$(node -p "require('./package.json').version")"
+          LOOKUP_ERROR="$(mktemp)"
+          trap 'rm -f "$LOOKUP_ERROR"' EXIT
+          if npm view "$PACKAGE@$VERSION" version >/dev/null 2>"$LOOKUP_ERROR"; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            STATUS=$?
+            if grep -Eq '^npm (ERR!|error) code E404$' "$LOOKUP_ERROR"; then
+              echo "exists=false" >> "$GITHUB_OUTPUT"
+            else
+              cat "$LOOKUP_ERROR" >&2
+              exit "$STATUS"
+            fi
+          fi
+
       - name: Publish to npm
+        if: steps.npm_version.outputs.exists != 'true'
         run: node scripts/prepare-publish.mjs --publish
         env:
           NPM_CONFIG_PROVENANCE: "true"

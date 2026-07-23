@@ -19,6 +19,21 @@ describe("parseHtml", () => {
     expect(parsed.stylesheets).toEqual(["p{color:#111}"]);
     expect(parsed.root.children[0]).toMatchObject({ kind: "element", tag: "p" });
   });
+
+  it("does not render the title from a full HTML document", () => {
+    const parsed = parseHtml(
+      '<!doctype html><html><head><meta charset="utf-8"><title>Document title</title><style>p{color:#111}</style></head><body><p>Visible content</p></body></html>'
+    );
+
+    const elements = [parsed.root];
+    for (const element of elements) {
+      elements.push(...element.children.filter((child) => child.kind === "element"));
+    }
+
+    expect(parsed.stylesheets).toEqual(["p{color:#111}"]);
+    expect(elements).not.toContainEqual(expect.objectContaining({ tag: "title" }));
+    expect(elements).toContainEqual(expect.objectContaining({ tag: "p" }));
+  });
 });
 
 describe("htmlToBoxpdf", () => {
