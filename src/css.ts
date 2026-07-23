@@ -1,7 +1,7 @@
 import { generate, parse as parseCss, walk } from "css-tree";
 import { parseColor } from "./color.js";
 import { parseLength, parseLengthPercentage, parseLineHeight, parseLineHeightScale, parsePercentage } from "./units.js";
-import type { CssDeclaration, CssRule, CssStyle, Display, GridTrack, HtmlElementNode } from "./types.js";
+import type { CssDeclaration, CssRule, CssStyle, CssTransform, Display, GridTrack, HtmlElementNode } from "./types.js";
 import type { Border, EdgesInput } from "boxpdf";
 
 type CssNode = { type: string; [key: string]: unknown };
@@ -132,7 +132,7 @@ const supportedCssProperties = new Set([
   "box-sizing", "position", "top", "right", "bottom", "left", "inset", "inset-block", "inset-inline", "inset-block-start", "inset-block-end", "inset-inline-start", "inset-inline-end",
   "z-index", "list-style", "list-style-type",
   "width", "min-width", "max-width", "height", "min-height", "max-height", "aspect-ratio",
-  "align-self", "flex-wrap", "opacity", "rotate", "transform", "letter-spacing",
+  "align-self", "flex-wrap", "opacity", "rotate", "translate", "scale", "transform", "transform-origin", "letter-spacing",
   "margin", "margin-block", "margin-inline", "margin-block-start", "margin-block-end", "margin-inline-start", "margin-inline-end", "margin-top", "margin-right", "margin-bottom", "margin-left",
   "padding", "padding-block", "padding-inline", "padding-block-start", "padding-block-end", "padding-inline-start", "padding-inline-end", "padding-top", "padding-right", "padding-bottom", "padding-left",
   "gap", "column-gap", "grid-column-gap", "row-gap", "grid-row-gap",
@@ -432,8 +432,17 @@ function applyDeclaration(out: Partial<CssStyle>, property: string, rawValue: st
     case "rotate":
       out.rotate = value === "none" ? undefined : parseAngle(value);
       break;
+    case "translate":
+      out.translate = value === "none" ? undefined : parseTranslate(value, fontSize);
+      break;
+    case "scale":
+      out.scale = value === "none" ? undefined : parseScale(value);
+      break;
     case "transform":
-      out.rotate = value === "none" ? undefined : parseRotateTransform(value);
+      out.transform = value === "none" ? undefined : parseTransformList(rawValue, fontSize);
+      break;
+    case "transform-origin":
+      out.transformOrigin = parseTransformOrigin(value, fontSize);
       break;
     case "letter-spacing":
       if (value !== "normal") out.letterSpacing = parseLength(value, fontSize);
@@ -608,12 +617,8 @@ function applyDeclaration(out: Partial<CssStyle>, property: string, rawValue: st
   }
 }
 
-function parseRotateTransform(value: string): number | undefined {
-  const match = /^\s*rotate(?:z)?\(\s*([^()]+)\s*\)\s*$/i.exec(value);
-  return match ? parseAngle(match[1] ?? "") : undefined;
-}
-
 function parseAngle(value: string): number | undefined {
+  if (value.trim() === "0") return 0;
   const match = /^([+-]?(?:\d+\.?\d*|\.\d+))(deg|grad|rad|turn)$/i.exec(value.trim());
   if (!match) return undefined;
   const amount = Number(match[1]);
@@ -628,6 +633,162 @@ function parseAngle(value: string): number | undefined {
     default:
       return amount;
   }
+}
+
+function parseTransformList(value: string, fontSize: number): CssTransform[] | undefined {
+  const transforms: CssTransform[] = [];
+  let index = 0;
+  while (index < value.length) {
+    while (/\s/.test(value[index] ?? "")) index += 1;
+    if (index >= value.length) break;
+    const nameMatch = /^([a-z][a-z0-9]*)\s*\(/i.exec(value.slice(index));
+    if (!nameMatch) return undefined;
+    const name = (nameMatch[1] ?? "").toLowerCase();
+    const open = index + (nameMatch[0]?.lastIndexOf("(") ?? -1);
+    const end = closingParenIndex(value, open + 1);
+    if (end === -1) return undefined;
+    const transform = parseTransformFunction(name, value.slice(open + 1, end), fontSize);
+    if (!transform) return undefined;
+    transforms.push(transform);
+    index = end + 1;
+  }
+  return transforms.length > 0 ? transforms : undefined;
+}
+
+function parseTransformFunction(name: string, rawArgs: string, fontSize: number): CssTransform | undefined {
+  const args = splitTransformArgs(rawArgs);
+  if (name === "translate" || name === "translatex" || name === "translatey") {
+    if (args.length < 1 || args.length > 2 || (name !== "translate" && args.length !== 1)) return undefined;
+    const zero = { length: 0, percent: 0 };
+    const first = parseLengthPercentage(args[0], fontSize);
+    if (!first) return undefined;
+    if (name === "translatex") return { kind: "translate", x: first, y: zero };
+    if (name === "translatey") return { kind: "translate", x: zero, y: first };
+    const second = args[1] ? parseLengthPercentage(args[1], fontSize) : zero;
+    return second ? { kind: "translate", x: first, y: second } : undefined;
+  }
+  if (name === "scale" || name === "scalex" || name === "scaley") {
+    if (args.length < 1 || args.length > 2 || (name !== "scale" && args.length !== 1)) return undefined;
+    const first = parseScaleFactor(args[0]);
+    if (first === undefined) return undefined;
+    if (name === "scalex") return { kind: "scale", x: first, y: 1 };
+    if (name === "scaley") return { kind: "scale", x: 1, y: first };
+    const second = args[1] === undefined ? first : parseScaleFactor(args[1]);
+    return second === undefined ? undefined : { kind: "scale", x: first, y: second };
+  }
+  if (name === "rotate" || name === "rotatez") {
+    if (args.length !== 1) return undefined;
+    const degrees = parseAngle(args[0] ?? "");
+    return degrees === undefined ? undefined : { kind: "rotate", degrees };
+  }
+  if (name === "skew" || name === "skewx" || name === "skewy") {
+    if (args.length < 1 || args.length > 2 || (name !== "skew" && args.length !== 1)) return undefined;
+    const first = parseAngle(args[0] ?? "");
+    if (first === undefined) return undefined;
+    if (name === "skewx") return { kind: "skew", xDegrees: first, yDegrees: 0 };
+    if (name === "skewy") return { kind: "skew", xDegrees: 0, yDegrees: first };
+    const second = args[1] === undefined ? 0 : parseAngle(args[1]);
+    return second === undefined ? undefined : { kind: "skew", xDegrees: first, yDegrees: second };
+  }
+  if (name === "matrix") {
+    if (args.length !== 6) return undefined;
+    const values = args.map(Number);
+    if (!values.every(Number.isFinite)) return undefined;
+    return {
+      kind: "matrix",
+      a: values[0]!,
+      b: values[1]!,
+      c: values[2]!,
+      d: values[3]!,
+      e: values[4]! * 0.75,
+      f: values[5]! * 0.75
+    };
+  }
+  return undefined;
+}
+
+function parseTranslate(value: string, fontSize: number): CssStyle["translate"] {
+  const args = splitTransformArgs(value);
+  if (args.length < 1 || args.length > 2) return undefined;
+  const x = parseLengthPercentage(args[0], fontSize);
+  const y = args[1] === undefined ? { length: 0, percent: 0 } : parseLengthPercentage(args[1], fontSize);
+  return x && y ? { x, y } : undefined;
+}
+
+function parseScale(value: string): CssStyle["scale"] {
+  const args = splitTransformArgs(value);
+  if (args.length < 1 || args.length > 2) return undefined;
+  const x = parseScaleFactor(args[0]);
+  const y = args[1] === undefined ? x : parseScaleFactor(args[1]);
+  return x === undefined || y === undefined ? undefined : { x, y };
+}
+
+function parseScaleFactor(value: string | undefined): number | undefined {
+  if (!value) return undefined;
+  const percent = /^([+-]?(?:\d+\.?\d*|\.\d+))%$/.exec(value.trim());
+  const number = percent ? Number(percent[1]) / 100 : Number(value);
+  return Number.isFinite(number) ? number : undefined;
+}
+
+function parseTransformOrigin(value: string, fontSize: number): CssStyle["transformOrigin"] {
+  const args = splitTransformArgs(value);
+  if (args.length < 1 || args.length > 2) return undefined;
+  let [first, second] = args;
+  if (args.length === 1 && (first === "top" || first === "bottom")) {
+    second = first;
+    first = "center";
+  } else {
+    second ??= "center";
+  }
+  if ((first === "top" || first === "bottom") && (second === "left" || second === "right" || second === "center")) {
+    [first, second] = [second, first];
+  }
+  const x = parseOriginComponent(first, "x", fontSize);
+  const y = parseOriginComponent(second, "y", fontSize);
+  return x && y ? { x, y } : undefined;
+}
+
+function parseOriginComponent(value: string | undefined, axis: "x" | "y", fontSize: number) {
+  if (!value || value === "center") return { length: 0, percent: 0.5 };
+  if ((axis === "x" && value === "left") || (axis === "y" && value === "top")) return { length: 0, percent: 0 };
+  if ((axis === "x" && value === "right") || (axis === "y" && value === "bottom")) return { length: 0, percent: 1 };
+  return parseLengthPercentage(value, fontSize);
+}
+
+function splitTransformArgs(value: string): string[] {
+  const commaParts = splitTopLevel(value, ",");
+  if (commaParts.length > 1) return commaParts.map((part) => part.trim()).filter(Boolean);
+  const parts: string[] = [];
+  let start = 0;
+  let depth = 0;
+  for (let index = 0; index <= value.length; index += 1) {
+    const char = value[index];
+    if (char === "(") depth += 1;
+    else if (char === ")") depth -= 1;
+    if ((char === undefined || (depth === 0 && /\s/.test(char))) && index > start) {
+      parts.push(value.slice(start, index).trim());
+      while (/\s/.test(value[index + 1] ?? "")) index += 1;
+      start = index + 1;
+    }
+  }
+  return parts.filter(Boolean);
+}
+
+function splitTopLevel(value: string, delimiter: string): string[] {
+  const parts: string[] = [];
+  let start = 0;
+  let depth = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    const char = value[index];
+    if (char === "(") depth += 1;
+    else if (char === ")") depth -= 1;
+    else if (char === delimiter && depth === 0) {
+      parts.push(value.slice(start, index));
+      start = index + 1;
+    }
+  }
+  parts.push(value.slice(start));
+  return parts;
 }
 
 function parseAspectRatio(value: string): number | undefined {

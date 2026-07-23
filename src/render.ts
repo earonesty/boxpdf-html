@@ -71,7 +71,7 @@ function renderBlock(node: StyledElement, options: HtmlToBoxpdfOptions, warnings
     left: node.style.left,
     zIndex: node.style.zIndex,
     opacity: node.style.opacity,
-    rotate: node.style.rotate,
+    ...paintTransform(node.style),
     alignSelf: node.style.alignSelf,
     align: stretch ? "stretch" as const : "start" as const
   };
@@ -201,7 +201,7 @@ function renderFlex(node: StyledElement, options: HtmlToBoxpdfOptions, warnings:
     left: node.style.left,
     zIndex: node.style.zIndex,
     opacity: node.style.opacity,
-    rotate: node.style.rotate,
+    ...paintTransform(node.style),
     alignSelf: node.style.alignSelf
   };
   return node.style.flexDirection.startsWith("row") ? hstack(style, ...children.nodes) : vstack(style, ...children.nodes);
@@ -275,7 +275,7 @@ function renderGrid(node: StyledElement, options: HtmlToBoxpdfOptions, warnings:
     left: node.style.left,
     zIndex: node.style.zIndex,
     opacity: node.style.opacity,
-    rotate: node.style.rotate,
+    ...paintTransform(node.style),
     alignSelf: node.style.alignSelf
   };
   return vstack(style, ...rows);
@@ -500,7 +500,8 @@ function renderList(node: StyledElement, options: HtmlToBoxpdfOptions, warnings:
     {
       margin: node.style.margin,
       padding: { ...listPadding, left: leftPadding },
-      gap: node.style.gap ?? 0
+      gap: node.style.gap ?? 0,
+      ...paintTransform(node.style)
     },
     ...items.flatMap((item, index) => renderListItem(item, index, node.style.listStyleType, markerWidth, options, warnings))
   );
@@ -598,7 +599,7 @@ function renderImageForLayout(node: StyledElement, options: HtmlToBoxpdfOptions,
     borderSides: node.style.borderSides,
     borderRadius: node.style.borderRadius,
     overflow: node.style.overflow,
-    rotate: node.style.rotate,
+    ...paintTransform(node.style),
     shrink: 0
   };
   return vstack(style, content);
@@ -651,7 +652,7 @@ function hasImageBoxStyling(node: StyledElement): boolean {
       node.style.borderWidth ||
       node.style.borderSides ||
       node.style.borderRadius ||
-      node.style.rotate !== undefined ||
+      hasPaintTransform(node.style) ||
       node.style.padding ||
       node.style.overflow
   );
@@ -730,31 +731,37 @@ function renderTable(node: StyledElement, options: HtmlToBoxpdfOptions, warnings
     warnings.push("table without direct tr children was flattened as a block");
     return [renderBlock(node, options, warnings)];
   }
-  return [
-    table({
-      width: cssBoxWidth(node) ?? options.width,
-      columns: inferColumns(rows),
-      columnGap: 0,
-      borderCollapse: node.style.borderCollapse,
-      margin: node.style.margin,
-      rows: rows.map((row) =>
-        row.children
-          .filter((child): child is StyledElement => !("text" in child) && (child.node.tag === "td" || child.node.tag === "th"))
-          .map((cell) => ({
-            content: renderCellContent(cell, options, warnings),
-            padding: layoutPadding(cell, 4),
-            background: cell.style.background,
-            backgroundImage: backgroundImage(cell, options),
-            border: border(cell),
-            borderSides: cell.style.borderSides,
-            borderRadius: cell.style.borderRadius,
-            overflow: cell.style.overflow,
-            align: cell.style.textAlign,
-            valign: cell.style.verticalAlign === "middle" ? "middle" : "top"
-          }))
-      )
-    })
-  ];
+  const transformed = hasPaintTransform(node.style);
+  const rendered = table({
+    width: cssBoxWidth(node) ?? options.width,
+    columns: inferColumns(rows),
+    columnGap: 0,
+    borderCollapse: node.style.borderCollapse,
+    margin: transformed ? undefined : node.style.margin,
+    rows: rows.map((row) =>
+      row.children
+        .filter((child): child is StyledElement => !("text" in child) && (child.node.tag === "td" || child.node.tag === "th"))
+        .map((cell) => ({
+          content: renderCellContent(cell, options, warnings),
+          padding: layoutPadding(cell, 4),
+          background: cell.style.background,
+          backgroundImage: backgroundImage(cell, options),
+          border: border(cell),
+          borderSides: cell.style.borderSides,
+          borderRadius: cell.style.borderRadius,
+          overflow: cell.style.overflow,
+          align: cell.style.textAlign,
+          valign: cell.style.verticalAlign === "middle" ? "middle" : "top"
+        }))
+    )
+  });
+  if (!transformed) return [rendered];
+  const style = {
+    width: cssBoxWidth(node) ?? options.width,
+    margin: node.style.margin,
+    ...paintTransform(node.style)
+  };
+  return [vstack(style, rendered)];
 }
 
 function renderCellContent(cell: StyledElement, options: HtmlToBoxpdfOptions, warnings: string[]): BoxNode {
@@ -939,6 +946,28 @@ function border(node: StyledElement) {
   return { width: node.style.borderWidth, color: node.style.borderColor };
 }
 
+function paintTransform(style: StyledElement["style"]) {
+  const transform = [
+    ...(style.translate ? [{ kind: "translate" as const, ...style.translate }] : []),
+    ...(style.rotate !== undefined ? [{ kind: "rotate" as const, degrees: style.rotate }] : []),
+    ...(style.scale ? [{ kind: "scale" as const, ...style.scale }] : []),
+    ...(style.transform ?? [])
+  ];
+  return {
+    transform: transform.length > 0 ? transform : undefined,
+    transformOrigin: style.transformOrigin
+  };
+}
+
+function hasPaintTransform(style: StyledElement["style"]): boolean {
+  return Boolean(
+    style.translate ||
+      style.rotate !== undefined ||
+      style.scale ||
+      (style.transform && style.transform.length > 0)
+  );
+}
+
 function hasBoxStyling(node: StyledElement): boolean {
   return Boolean(
     node.style.background ||
@@ -946,6 +975,7 @@ function hasBoxStyling(node: StyledElement): boolean {
       node.style.borderWidth ||
       node.style.borderSides ||
       node.style.borderRadius ||
+      hasPaintTransform(node.style) ||
       node.style.padding ||
       node.style.width !== undefined ||
       node.style.height !== undefined
