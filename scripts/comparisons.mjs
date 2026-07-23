@@ -17,6 +17,7 @@ export const comparisons = [
   ["fixtures/lists.html", "artifacts/lists"],
   ["fixtures/overflow.html", "artifacts/overflow"],
   ["fixtures/replaced-images.html", "artifacts/replaced-images"],
+  ["fixtures/rotation.html", "artifacts/rotation"],
   ["fixtures/positioning.html", "artifacts/positioning"],
   ["fixtures/selectors.html", "artifacts/selectors"],
   ["fixtures/tailwind-invoice.html", "artifacts/tailwind-invoice"],

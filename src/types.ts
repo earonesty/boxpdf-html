@@ -142,6 +142,8 @@ export interface CssStyle {
   alignSelf?: CssStyle["alignItems"];
   flexWrap?: "wrap" | "nowrap";
   opacity?: number;
+  /** Clockwise rotation in degrees, resolved from CSS rotate/transform. */
+  rotate?: number;
   letterSpacing?: number;
   gap?: number;
   columnGap?: number;

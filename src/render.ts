@@ -50,33 +50,32 @@ function renderNode(node: StyledNode, options: HtmlToBoxpdfOptions, warnings: st
 
 function renderBlock(node: StyledElement, options: HtmlToBoxpdfOptions, warnings: string[], stretch = node.style.display === "block"): BoxNode {
   const children = renderBlockChildren(node, options, warnings);
-  return vstack(
-    {
-      width: cssBoxWidth(node),
-      height: cssBoxHeight(node),
-      minHeight: node.style.minHeight,
-      maxHeight: node.style.maxHeight,
-      margin: node.style.margin,
-      padding: layoutPadding(node),
-      gap: node.style.gap ?? 0,
-      background: node.style.background,
-      backgroundImage: backgroundImage(node, options),
-      border: border(node),
-      borderSides: node.style.borderSides,
-      borderRadius: node.style.borderRadius,
-      overflow: node.style.overflow,
-      position: node.style.position,
-      top: node.style.top,
-      right: node.style.right,
-      bottom: node.style.bottom,
-      left: node.style.left,
-      zIndex: node.style.zIndex,
-      opacity: node.style.opacity,
-      alignSelf: node.style.alignSelf,
-      align: stretch ? "stretch" : "start"
-    },
-    ...children
-  );
+  const style = {
+    width: cssBoxWidth(node),
+    height: cssBoxHeight(node),
+    minHeight: node.style.minHeight,
+    maxHeight: node.style.maxHeight,
+    margin: node.style.margin,
+    padding: layoutPadding(node),
+    gap: node.style.gap ?? 0,
+    background: node.style.background,
+    backgroundImage: backgroundImage(node, options),
+    border: border(node),
+    borderSides: node.style.borderSides,
+    borderRadius: node.style.borderRadius,
+    overflow: node.style.overflow,
+    position: node.style.position,
+    top: node.style.top,
+    right: node.style.right,
+    bottom: node.style.bottom,
+    left: node.style.left,
+    zIndex: node.style.zIndex,
+    opacity: node.style.opacity,
+    rotate: node.style.rotate,
+    alignSelf: node.style.alignSelf,
+    align: stretch ? "stretch" as const : "start" as const
+  };
+  return vstack(style, ...children);
 }
 
 function renderBlockChildren(node: StyledElement, options: HtmlToBoxpdfOptions, warnings: string[]): BoxNode[] {
@@ -202,6 +201,7 @@ function renderFlex(node: StyledElement, options: HtmlToBoxpdfOptions, warnings:
     left: node.style.left,
     zIndex: node.style.zIndex,
     opacity: node.style.opacity,
+    rotate: node.style.rotate,
     alignSelf: node.style.alignSelf
   };
   return node.style.flexDirection.startsWith("row") ? hstack(style, ...children.nodes) : vstack(style, ...children.nodes);
@@ -254,32 +254,31 @@ function renderGrid(node: StyledElement, options: HtmlToBoxpdfOptions, warnings:
   const tracks = resolveGridTracks(node.style.gridTemplateColumns, gridWidth, gridGap);
   if (tracks.length === 0) return renderBlock(node, options, warnings);
   const rows = gridRows(node, tracks, options, warnings);
-  return vstack(
-    {
-      width: cssBoxWidth(node),
-      height: cssBoxHeight(node),
-      minHeight: node.style.minHeight,
-      maxHeight: node.style.maxHeight,
-      margin: node.style.margin,
-      padding: layoutPadding(node),
-      gap: node.style.rowGap ?? node.style.gap ?? 0,
-      background: node.style.background,
-      backgroundImage: backgroundImage(node, options),
-      border: border(node),
-      borderSides: node.style.borderSides,
-      borderRadius: node.style.borderRadius,
-      overflow: node.style.overflow,
-      position: node.style.position,
-      top: node.style.top,
-      right: node.style.right,
-      bottom: node.style.bottom,
-      left: node.style.left,
-      zIndex: node.style.zIndex,
-      opacity: node.style.opacity,
-      alignSelf: node.style.alignSelf
-    },
-    ...rows
-  );
+  const style = {
+    width: cssBoxWidth(node),
+    height: cssBoxHeight(node),
+    minHeight: node.style.minHeight,
+    maxHeight: node.style.maxHeight,
+    margin: node.style.margin,
+    padding: layoutPadding(node),
+    gap: node.style.rowGap ?? node.style.gap ?? 0,
+    background: node.style.background,
+    backgroundImage: backgroundImage(node, options),
+    border: border(node),
+    borderSides: node.style.borderSides,
+    borderRadius: node.style.borderRadius,
+    overflow: node.style.overflow,
+    position: node.style.position,
+    top: node.style.top,
+    right: node.style.right,
+    bottom: node.style.bottom,
+    left: node.style.left,
+    zIndex: node.style.zIndex,
+    opacity: node.style.opacity,
+    rotate: node.style.rotate,
+    alignSelf: node.style.alignSelf
+  };
+  return vstack(style, ...rows);
 }
 
 interface GridCell {
@@ -589,21 +588,20 @@ function renderImageForLayout(node: StyledElement, options: HtmlToBoxpdfOptions,
   if (!hasImageBoxStyling(node)) return renderImageNode(node, options, warnings);
   const content = renderImageContent(node, options, warnings, undefined, false);
   if (!content) return undefined;
-  return vstack(
-    {
-      width: cssBoxWidth(node),
-      height: cssBoxHeight(node),
-      margin: node.style.margin,
-      padding: layoutPadding(node),
-      background: node.style.background,
-      border: border(node),
-      borderSides: node.style.borderSides,
-      borderRadius: node.style.borderRadius,
-      overflow: node.style.overflow,
-      shrink: 0
-    },
-    content
-  );
+  const style = {
+    width: cssBoxWidth(node),
+    height: cssBoxHeight(node),
+    margin: node.style.margin,
+    padding: layoutPadding(node),
+    background: node.style.background,
+    border: border(node),
+    borderSides: node.style.borderSides,
+    borderRadius: node.style.borderRadius,
+    overflow: node.style.overflow,
+    rotate: node.style.rotate,
+    shrink: 0
+  };
+  return vstack(style, content);
 }
 
 function renderImageContent(
@@ -653,6 +651,7 @@ function hasImageBoxStyling(node: StyledElement): boolean {
       node.style.borderWidth ||
       node.style.borderSides ||
       node.style.borderRadius ||
+      node.style.rotate !== undefined ||
       node.style.padding ||
       node.style.overflow
   );

@@ -132,7 +132,7 @@ const supportedCssProperties = new Set([
   "box-sizing", "position", "top", "right", "bottom", "left", "inset", "inset-block", "inset-inline", "inset-block-start", "inset-block-end", "inset-inline-start", "inset-inline-end",
   "z-index", "list-style", "list-style-type",
   "width", "min-width", "max-width", "height", "min-height", "max-height", "aspect-ratio",
-  "align-self", "flex-wrap", "opacity", "letter-spacing",
+  "align-self", "flex-wrap", "opacity", "rotate", "transform", "letter-spacing",
   "margin", "margin-block", "margin-inline", "margin-block-start", "margin-block-end", "margin-inline-start", "margin-inline-end", "margin-top", "margin-right", "margin-bottom", "margin-left",
   "padding", "padding-block", "padding-inline", "padding-block-start", "padding-block-end", "padding-inline-start", "padding-inline-end", "padding-top", "padding-right", "padding-bottom", "padding-left",
   "gap", "column-gap", "grid-column-gap", "row-gap", "grid-row-gap",
@@ -429,6 +429,12 @@ function applyDeclaration(out: Partial<CssStyle>, property: string, rawValue: st
       if (Number.isFinite(n)) out.opacity = Math.max(0, Math.min(1, n));
       break;
     }
+    case "rotate":
+      out.rotate = value === "none" ? undefined : parseAngle(value);
+      break;
+    case "transform":
+      out.rotate = value === "none" ? undefined : parseRotateTransform(value);
+      break;
     case "letter-spacing":
       if (value !== "normal") out.letterSpacing = parseLength(value, fontSize);
       break;
@@ -599,6 +605,28 @@ function applyDeclaration(out: Partial<CssStyle>, property: string, rawValue: st
     case "border-collapse":
       if (value === "collapse" || value === "separate") out.borderCollapse = value;
       break;
+  }
+}
+
+function parseRotateTransform(value: string): number | undefined {
+  const match = /^\s*rotate(?:z)?\(\s*([^()]+)\s*\)\s*$/i.exec(value);
+  return match ? parseAngle(match[1] ?? "") : undefined;
+}
+
+function parseAngle(value: string): number | undefined {
+  const match = /^([+-]?(?:\d+\.?\d*|\.\d+))(deg|grad|rad|turn)$/i.exec(value.trim());
+  if (!match) return undefined;
+  const amount = Number(match[1]);
+  if (!Number.isFinite(amount)) return undefined;
+  switch (match[2]?.toLowerCase()) {
+    case "grad":
+      return amount * 0.9;
+    case "rad":
+      return (amount * 180) / Math.PI;
+    case "turn":
+      return amount * 360;
+    default:
+      return amount;
   }
 }
 

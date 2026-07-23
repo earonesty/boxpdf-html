@@ -12,9 +12,16 @@ const coreRequire = createRequire(resolve(root, "../package.json"));
 const { PDFDocument } = coreRequire("pdf-lib");
 const tempRoot = mkdtempSync(join(tmpdir(), "boxpdf-html-visual-"));
 const failures = [];
+const filters = process.argv.slice(2).filter((filter) => filter !== "--");
+const selectedComparisons =
+  filters.length === 0
+    ? comparisons
+    : comparisons.filter(([fixture, outDir]) =>
+        filters.some((filter) => fixture.includes(filter) || outDir.includes(filter))
+      );
 
 try {
-  for (const [fixture, outDir] of comparisons) {
+  for (const [fixture, outDir] of selectedComparisons) {
     const fixturePath = resolve(root, fixture);
     const baseline = resolve(root, outDir, "boxpdf-html.png");
     if (!existsSync(baseline)) {
@@ -41,7 +48,12 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log(`BoxPDF visual baselines match (${comparisons.length} fixtures).`);
+if (selectedComparisons.length === 0) {
+  console.error(`No visual fixtures matched: ${filters.join(", ")}`);
+  process.exit(1);
+}
+
+console.log(`BoxPDF visual baselines match (${selectedComparisons.length} fixtures).`);
 
 async function renderBoxpdf(input, output) {
   const source = readFileSync(input, "utf8");

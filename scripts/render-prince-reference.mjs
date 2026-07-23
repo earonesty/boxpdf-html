@@ -4,7 +4,7 @@ import { dirname, extname, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { fontFamily, htmlToBoxpdf } from "../dist/index.js";
-import { loadFont, renderFlow } from "boxpdf";
+import { loadFont, renderFlow } from "../../dist/index.js";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const coreRequire = createRequire(resolve(root, "../package.json"));
@@ -20,8 +20,15 @@ const boxpdfPdf = resolve(outDir, "boxpdf-html.pdf");
 const princePdf = resolve(outDir, "prince.pdf");
 
 await renderBoxpdf(html, boxpdfPdf);
-run(prince, [input, "-o", princePdf]);
 renderPng(boxpdfPdf, resolve(outDir, "boxpdf-html"));
+
+if (process.env.BOXPDF_ONLY === "1") {
+  console.log(`wrote ${boxpdfPdf}`);
+  console.log(`wrote ${resolve(outDir, "boxpdf-html.png")}`);
+  process.exit(0);
+}
+
+run(prince, [input, "-o", princePdf]);
 renderPng(princePdf, resolve(outDir, "prince"));
 
 console.log(`wrote ${boxpdfPdf}`);

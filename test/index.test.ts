@@ -739,6 +739,27 @@ c</p>`,
     ]);
   });
 
+  it("maps common CSS rotation forms onto box paint rotation", () => {
+    const result = htmlToBoxpdf(
+      `<style>
+        .degrees{transform:rotate(45deg)}
+        .radians{transform:rotateZ(1.5707963267948966rad)}
+        .turns{rotate:-.25turn}
+        .grads{rotate:100grad}
+      </style>
+      <div class="degrees">A</div>
+      <div class="radians">B</div>
+      <div class="turns">C</div>
+      <div class="grads">D</div>`,
+      { font, width: 320 }
+    );
+
+    expect(result.nodes[0]).toMatchObject({ kind: "vstack", style: { rotate: 45 } });
+    expect(result.nodes[1]).toMatchObject({ kind: "vstack", style: { rotate: 90 } });
+    expect(result.nodes[2]).toMatchObject({ kind: "vstack", style: { rotate: -90 } });
+    expect(result.nodes[3]).toMatchObject({ kind: "vstack", style: { rotate: 90 } });
+  });
+
   it("keeps Tailwind unsupported CSS diagnostics focused on utilities", () => {
     const result = htmlToBoxpdf(
       `<style>
