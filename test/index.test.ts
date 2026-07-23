@@ -793,6 +793,64 @@ c</p>`,
     });
   });
 
+  it("keeps valid transform declarations when later declarations are invalid", () => {
+    const result = htmlToBoxpdf(
+      `<div style="
+        transform:rotate(15deg);transform:not-a-transform;
+        translate:10px;translate:invalid;
+        rotate:20deg;rotate:invalid;
+        scale:150%;scale:invalid;
+        transform-origin:left top;transform-origin:invalid invalid
+      ">Fallbacks</div>`,
+      { font, width: 320 }
+    );
+
+    expect(result.nodes[0]).toMatchObject({
+      kind: "vstack",
+      style: {
+        transformOrigin: {
+          x: { length: 0, percent: 0 },
+          y: { length: 0, percent: 0 }
+        },
+        transform: [
+          { kind: "translate", x: { length: 7.5, percent: 0 }, y: { length: 0, percent: 0 } },
+          { kind: "rotate", degrees: 20 },
+          { kind: "scale", x: 1.5, y: 1.5 },
+          { kind: "rotate", degrees: 15 }
+        ]
+      }
+    });
+  });
+
+  it("accepts reordered transform-origin keywords and 2D z-axis rotations", () => {
+    const result = htmlToBoxpdf(
+      `<div style="transform-origin:center left;rotate:z 45deg">Left</div>
+       <div style="transform-origin:center right;rotate:45deg z">Right</div>`,
+      { font, width: 320 }
+    );
+
+    expect(result.nodes[0]).toMatchObject({
+      kind: "vstack",
+      style: {
+        transformOrigin: {
+          x: { length: 0, percent: 0 },
+          y: { length: 0, percent: 0.5 }
+        },
+        transform: [{ kind: "rotate", degrees: 45 }]
+      }
+    });
+    expect(result.nodes[1]).toMatchObject({
+      kind: "vstack",
+      style: {
+        transformOrigin: {
+          x: { length: 0, percent: 1 },
+          y: { length: 0, percent: 0.5 }
+        },
+        transform: [{ kind: "rotate", degrees: 45 }]
+      }
+    });
+  });
+
   it("keeps Tailwind unsupported CSS diagnostics focused on utilities", () => {
     const result = htmlToBoxpdf(
       `<style>
