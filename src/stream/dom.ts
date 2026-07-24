@@ -34,6 +34,9 @@ export async function visitHtmlRoots(
   visit: (node: HtmlNode) => void | Promise<void>
 ): Promise<StreamDomStats> {
   const parser = new SAXParser();
+  // SAXParser passes source bytes through its readable side; drain them so
+  // parsing remains backpressure-safe for inputs larger than its buffer.
+  parser.resume();
   const decoder = new TextDecoder();
   const root: Frame = {
     tag: "#root",

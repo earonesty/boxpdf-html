@@ -73,6 +73,12 @@ function createDiagnostics(options: HtmlToBoxpdfOptions): { recordUnsupportedCss
 export { parseHtml };
 export { fontFamily } from "./font.js";
 export { htmlToPdf, type HtmlToPdfOptions } from "./pdf.js";
+export {
+  streamHtmlToPdf,
+  type HtmlStreamSource,
+  type StreamHtmlToPdfOptions,
+  type StreamHtmlToPdfResult
+} from "./stream/pdf.js";
 
 function now(): number {
   return typeof performance === "undefined" ? Date.now() : performance.now();

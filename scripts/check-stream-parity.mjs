@@ -8,16 +8,14 @@ import {
   rmSync,
   writeFileSync
 } from "node:fs";
-import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, extname, join, resolve } from "node:path";
-import { fontFamily, htmlToBoxpdf } from "../dist/index.js";
-import { loadFont, renderFlow, streamFlow } from "../../dist/index.js";
+import { PDFDocument } from "pdf-lib";
+import { fontFamily, htmlToBoxpdf, streamHtmlToPdf } from "../dist/index.js";
+import { loadFont, renderFlow } from "boxpdf";
 import { comparisons } from "./comparisons.mjs";
 
 const root = resolve(dirname(new URL(import.meta.url).pathname), "..");
-const coreRequire = createRequire(resolve(root, "../package.json"));
-const { PDFDocument } = coreRequire("pdf-lib");
 const tempRoot = mkdtempSync(join(tmpdir(), "boxpdf-html-stream-visual-"));
 const filters = process.argv.slice(2).filter((filter) => filter !== "--");
 const selected =
@@ -39,17 +37,21 @@ try {
     const bufferedPdf = resolve(outputDir, "buffered.pdf");
     writeFileSync(bufferedPdf, await buffered.doc.save());
 
-    const streamed = await buildFixture(fixturePath);
+    const streamed = await buildFixture(fixturePath, false);
     const chunks = [];
-    await streamFlow(
-      streamed.doc,
+    await streamHtmlToPdf(
+      () => sourceChunks(streamed.source),
       new WritableStream({
         write(chunk) {
           chunks.push(chunk);
         }
       }),
-      streamed.nodes,
-      { margin: 40 }
+      {
+        ...streamed.options,
+        pdf: streamed.doc,
+        preloadFonts: streamed.fonts,
+        margin: 40
+      }
     );
     const streamedPdf = resolve(outputDir, "streamed.pdf");
     writeFileSync(streamedPdf, concat(chunks));
@@ -77,7 +79,7 @@ if (selected.length === 0) {
   throw new Error(`No visual fixtures matched: ${filters.join(", ")}`);
 }
 
-async function buildFixture(input) {
+async function buildFixture(input, buildNodes = true) {
   const source = readFileSync(input, "utf8");
   const doc = await PDFDocument.create({ updateMetadata: false });
   const font = await loadFont(doc, readFileSync("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"), { subset: false });
@@ -85,7 +87,7 @@ async function buildFixture(input) {
   const italicFont = await loadFont(doc, readFileSync("/usr/share/fonts/truetype/dejavu/DejaVuSans-Oblique.ttf"), { subset: false });
   const boldItalicFont = await loadFont(doc, readFileSync("/usr/share/fonts/truetype/dejavu/DejaVuSans-BoldOblique.ttf"), { subset: false });
   const images = await embedImages(doc, source, dirname(input));
-  const result = htmlToBoxpdf(source, {
+  const options = {
     font,
     boldFont,
     italicFont,
@@ -100,9 +102,18 @@ async function buildFixture(input) {
     resolveImage: ({ url }) => images.get(resolve(dirname(input), url)),
     baseUrl: dirname(input),
     width: 532
-  });
+  };
+  if (!buildNodes) return { doc, source, options, fonts: [font, boldFont, italicFont, boldItalicFont] };
+  const result = htmlToBoxpdf(source, options);
   if (result.warnings.length > 0) console.warn(result.warnings.join("\n"));
-  return { doc, nodes: result.nodes };
+  return { doc, nodes: result.nodes, source, options, fonts: [font, boldFont, italicFont, boldItalicFont] };
+}
+
+async function* sourceChunks(source) {
+  const bytes = new TextEncoder().encode(source);
+  for (let offset = 0; offset < bytes.length; offset += 4096) {
+    yield bytes.slice(offset, offset + 4096);
+  }
 }
 
 async function embedImages(doc, source, baseDir) {

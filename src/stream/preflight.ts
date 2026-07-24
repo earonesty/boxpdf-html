@@ -19,6 +19,9 @@ export async function preflightHtml(
   input: AsyncIterable<string | Uint8Array>
 ): Promise<HtmlPreflight> {
   const parser = new SAXParser();
+  // SAXParser is a pass-through Transform. Drain its readable side so large
+  // inputs cannot stall on an output buffer nobody consumes.
+  parser.resume();
   const stylesheets: string[] = [];
   const assetUrls = new Set<string>();
   const glyphs = new Set<string>();
