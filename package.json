@@ -1,6 +1,6 @@
 {
   "name": "boxpdf-html",
-  "version": "1.4.1",
+  "version": "1.5.0",
   "mcpName": "io.github.earonesty/boxpdf-html",
   "description": "Readable HTML-to-PDF translator built on boxpdf.",
   "type": "module",
@@ -59,7 +59,7 @@
     "url": "https://github.com/earonesty/boxpdf-html/issues"
   },
   "dependencies": {
-    "boxpdf": "^1.10.0",
+    "boxpdf": "^1.11.0",
     "css-tree": "^3.1.0",
     "parse5": "^8.0.0",
     "pdf-lib": "^1.17.1"
@@ -74,7 +74,7 @@
     "vitest": "^4.1.6"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=20"
   },
   "publishConfig": {
     "access": "public"
