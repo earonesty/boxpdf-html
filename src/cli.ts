@@ -3,8 +3,9 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { PDFDocument } from "pdf-lib";
-import { renderFlow } from "boxpdf";
+import { renderFlow, savePdf } from "boxpdf";
 import { fontFamily, htmlToBoxpdf } from "./index.js";
+import { passwordFromEnvironment } from "./password-env.js";
 import { injectCss, loadFaces, loadImages, resolveAssetUrl } from "./render-file.js";
 
 interface CliOptions {
@@ -22,6 +23,7 @@ interface CliOptions {
   debug: boolean;
   unsupportedCss: boolean;
   profile: boolean;
+  passwordEnv?: string;
 }
 
 const help = `boxpdf-html
@@ -45,11 +47,13 @@ Options:
   --debug                   Draw boxpdf debug overlays.
   --unsupported-css         Print aggregated unsupported CSS diagnostics.
   --profile                 Print render phase timings.
+  --password-env <name>     Encrypt with the password stored in this environment variable.
   -h, --help                Show this help.
 
 Examples:
   boxpdf-html invoice.html invoice.pdf
   boxpdf-html invoice.html invoice.pdf --css dist/tailwind.css
+  BOXPDF_PASSWORD='open me' boxpdf-html invoice.html invoice.pdf --password-env BOXPDF_PASSWORD
   boxpdf-html invoice.html invoice.pdf --font ./Inter.ttf --bold-font ./Inter-Bold.ttf
   boxpdf-html invoice.html invoice.pdf \\
     --font-family 'Inter=normal:Inter.ttf,bold:Inter-Bold.ttf,italic:Inter-Italic.ttf'
@@ -73,6 +77,7 @@ async function main(): Promise<void> {
   if (!options.input || !options.output) {
     printHelpAndExit(options.input || options.output ? 1 : 0);
   }
+  const password = passwordFromEnvironment(options.passwordEnv);
 
   const inputPath = options.input === "-" ? undefined : resolve(options.input);
   const baseUrl = options.baseUrl ? resolve(options.baseUrl) : inputPath ? dirname(inputPath) : process.cwd();
@@ -100,7 +105,10 @@ async function main(): Promise<void> {
   if (options.unsupportedCss) printUnsupportedCss(result.diagnostics?.unsupportedCss ?? []);
 
   await renderFlow(pdf, result.nodes, { margin: options.margin, debug: options.debug });
-  writeFileSync(resolve(options.output), await pdf.save());
+  const bytes = password === undefined
+    ? await pdf.save()
+    : await savePdf(pdf, { encryption: { password } });
+  writeFileSync(resolve(options.output), bytes);
 }
 
 function parseArgs(args: string[]): CliOptions {
@@ -166,6 +174,9 @@ function parseArgs(args: string[]): CliOptions {
         break;
       case "--profile":
         options.profile = true;
+        break;
+      case "--password-env":
+        options.passwordEnv = next();
         break;
       default:
         fail(`unknown option "${arg}"`);

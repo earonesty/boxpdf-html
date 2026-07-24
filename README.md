@@ -21,6 +21,17 @@ npx tailwindcss -i ./tailwind.css -o ./dist/tailwind.css --minify
 npx boxpdf-html invoice.html invoice.pdf --css ./dist/tailwind.css
 ```
 
+With PDF 2.0 AES-256 password encryption:
+
+```sh
+BOXPDF_PASSWORD='open me' \
+  npx boxpdf-html invoice.html invoice.pdf --password-env BOXPDF_PASSWORD
+```
+
+`--password-env` accepts an environment-variable name. The variable must be
+set to a non-empty password. The password value is never accepted as a command
+argument, which keeps it out of the command line and process listing.
+
 With custom fonts and local images:
 
 ```sh
@@ -37,6 +48,7 @@ boxpdf-html <input.html> <output.pdf>
 boxpdf-html - <output.pdf>                  # read HTML from stdin
 boxpdf-html input.html output.pdf --css app.css
 boxpdf-html input.html output.pdf --base-url ./public
+boxpdf-html input.html output.pdf --password-env BOXPDF_PASSWORD
 boxpdf-html input.html output.pdf --debug
 boxpdf-html input.html output.pdf --unsupported-css
 boxpdf-html input.html output.pdf --profile
