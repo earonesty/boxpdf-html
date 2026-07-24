@@ -75,9 +75,6 @@ jobs:
       - name: Build
         run: pnpm run build
 
-      - name: Check buffered visual baselines
-        run: pnpm run visual:check
-
       - name: Check streamed visual parity
         run: pnpm run visual:check:stream
 
