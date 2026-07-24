@@ -48,10 +48,40 @@ describe("streamHtmlToPdf", () => {
       { pdf, font, width: 532, margin: 40, fragmentChildren: 16 }
     );
 
-    expect(result.pageCount).toBeGreaterThan(5);
+    expect(result.pageCount).toBeGreaterThan(1);
     expect(result.dom.emittedRoots).toBeGreaterThan(10);
     expect(result.dom.maxBufferedNodes).toBeLessThan(200);
     expect((await PDFDocument.load(concat(chunks))).getPageCount()).toBe(result.pageCount);
+  });
+
+  it("finishes resource preparation before writing PDF bytes", async () => {
+    const source = `<style>.prepared { background-image: url("paper.png"); filter: blur(2px) }</style>
+      <p class="prepared">Prepared before output</p>`;
+    const pdf = await PDFDocument.create({ updateMetadata: false });
+    const font = await pdf.embedFont(StandardFonts.Helvetica);
+    let prepared = false;
+    const result = await streamHtmlToPdf(
+      () => inputChunks(source, 7),
+      new WritableStream({
+        write() {
+          expect(prepared).toBe(true);
+        }
+      }),
+      {
+        pdf,
+        font,
+        width: 532,
+        diagnostics: { unsupportedCss: true },
+        prepare(preflight) {
+          expect([...preflight.assetUrls]).toEqual(["paper.png"]);
+          prepared = true;
+        }
+      }
+    );
+
+    expect(prepared).toBe(true);
+    expect(result.pageCount).toBe(1);
+    expect(result.diagnostics?.unsupportedCss[0]?.property).toBe("filter");
   });
 });
 

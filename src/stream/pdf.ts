@@ -7,9 +7,10 @@ import {
   type StreamFlowOptions
 } from "boxpdf";
 import { parseStylesheets } from "../css.js";
+import { createDiagnostics, type HtmlDiagnosticsRecorder } from "../diagnostics.js";
 import { renderStyledTree } from "../render.js";
 import { computeStyles, defaultStyle } from "../style.js";
-import type { HtmlElementNode, HtmlNode, HtmlToBoxpdfOptions } from "../types.js";
+import type { HtmlDiagnostics, HtmlElementNode, HtmlNode, HtmlToBoxpdfOptions } from "../types.js";
 import { visitHtmlRoots, type StreamDomStats } from "./dom.js";
 import { preflightHtml, type HtmlPreflight } from "./preflight.js";
 
@@ -32,6 +33,12 @@ export interface StreamHtmlToPdfOptions extends HtmlToBoxpdfOptions {
   maxBufferedNodes?: number;
   /** Hard cap for one uninterrupted UTF-8 text node. */
   maxTextBytes?: number;
+  /**
+   * Runs after the resource preflight and before PDF output starts. Use this
+   * to embed images discovered by the first pass.
+   */
+  prepare?: (preflight: HtmlPreflight) => void | Promise<void>;
+  encryption?: StreamFlowOptions["encryption"];
 }
 
 export interface StreamHtmlToPdfResult {
@@ -39,6 +46,7 @@ export interface StreamHtmlToPdfResult {
   preflight: HtmlPreflight;
   dom: StreamDomStats;
   warnings: string[];
+  diagnostics?: HtmlDiagnostics;
 }
 
 /**
@@ -51,9 +59,11 @@ export async function streamHtmlToPdf(
   options: StreamHtmlToPdfOptions
 ): Promise<StreamHtmlToPdfResult> {
   const preflight = await preflightHtml(openInput());
+  await options.prepare?.(preflight);
   prepareFonts(options, preflight.glyphs);
   const rules = parseStylesheets(preflight.stylesheets);
   const warnings: string[] = [];
+  const diagnostics = createDiagnostics(options.diagnostics);
   const nodeStream = new TransformStream<BoxNode, BoxNode>();
   const writer = nodeStream.writable.getWriter();
   let dom: StreamDomStats | undefined;
@@ -63,7 +73,7 @@ export async function streamHtmlToPdf(
       dom = await visitHtmlRoots(
         openInput(),
         async (node) => {
-          for (const rendered of renderRoot(node, rules, options, warnings)) {
+          for (const rendered of renderRoot(node, rules, options, warnings, diagnostics)) {
             await writer.write(rendered);
           }
         },
@@ -85,14 +95,21 @@ export async function streamHtmlToPdf(
     size: options.size ?? PageSizes.Letter,
     margin: options.margin ?? 40,
     debug: options.debug,
-    warnings: options.warnings
+    warnings: options.warnings,
+    encryption: options.encryption
   };
   try {
     const [{ pageCount }] = await Promise.all([
       streamFlow(options.pdf, writable, nodeStream.readable, flowOptions),
       producer
     ]);
-    return { pageCount, preflight, dom: dom!, warnings };
+    return {
+      pageCount,
+      preflight,
+      dom: dom!,
+      warnings,
+      diagnostics: diagnostics?.toJSON()
+    };
   } catch (error) {
     await writer.abort(error).catch(() => undefined);
     throw error;
@@ -149,7 +166,8 @@ function renderRoot(
   node: HtmlNode,
   rules: ReturnType<typeof parseStylesheets>,
   options: StreamHtmlToPdfOptions,
-  warnings: string[]
+  warnings: string[],
+  diagnostics: HtmlDiagnosticsRecorder | undefined
 ): BoxNode[] {
   const root: HtmlElementNode = {
     kind: "element",
@@ -166,7 +184,8 @@ function renderRoot(
       color: options.defaultColor,
       lineHeight: options.defaultLineHeight
     },
-    options.width
+    options.width,
+    diagnostics ? (declaration) => diagnostics.recordUnsupportedCss(declaration) : undefined
   );
   const result = renderStyledTree(styled, options);
   warnings.push(...result.warnings);
@@ -174,13 +193,21 @@ function renderRoot(
 }
 
 function prepareFonts(options: StreamHtmlToPdfOptions, glyphs: Set<string>): void {
-  const text = [...glyphs].join("");
-  if (!text) return;
   const fonts = new Set<PDFFont>([
     options.font,
     ...(options.boldFont ? [options.boldFont] : []),
     ...(options.italicFont ? [options.italicFont] : []),
     ...(options.preloadFonts ?? [])
   ]);
-  for (const font of fonts) font.encodeText(text);
+  for (const font of fonts) {
+    for (const glyph of glyphs) {
+      const rendered = /\s/u.test(glyph) ? " " : glyph;
+      try {
+        font.encodeText(rendered);
+      } catch {
+        // A fallback family may legitimately lack glyphs assigned to another
+        // face. Rendering still reports an error if this face is selected.
+      }
+    }
+  }
 }

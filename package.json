@@ -32,6 +32,7 @@
     "visual:check": "pnpm run visual:check:boxpdf",
     "visual:check:boxpdf": "pnpm run build && node scripts/check-boxpdf-baselines.mjs",
     "visual:check:stream": "pnpm run build && node scripts/check-stream-parity.mjs",
+    "visual:check:stream-cli": "pnpm run build && node scripts/check-stream-cli.mjs",
     "visual:check:prince": "pnpm run visual:regenerate && git diff --exit-code -- artifacts/*/*.png",
     "tailwind:fixture": "node scripts/build-tailwind-fixture.mjs",
     "profile:render": "pnpm run build && node scripts/render-boxpdf-profile.mjs",

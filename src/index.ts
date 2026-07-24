@@ -15,10 +15,11 @@ export type {
 export type { FontFamilyFace, FontFamilyMap } from "./font.js";
 
 import { parseStylesheets } from "./css.js";
+import { createDiagnostics } from "./diagnostics.js";
 import { parseHtml } from "./dom.js";
 import { renderStyledTree } from "./render.js";
 import { computeStyles, defaultStyle } from "./style.js";
-import type { CssDeclaration, HtmlDiagnostics, HtmlNode, HtmlProfileEvent, HtmlToBoxpdfOptions, RenderResult, StyledNode } from "./types.js";
+import type { HtmlNode, HtmlProfileEvent, HtmlToBoxpdfOptions, RenderResult, StyledNode } from "./types.js";
 import type { Node as BoxNode } from "boxpdf";
 
 export function htmlToBoxpdf(html: string, options: HtmlToBoxpdfOptions): RenderResult {
@@ -31,7 +32,7 @@ export function htmlToBoxpdf(html: string, options: HtmlToBoxpdfOptions): Render
   profile({ phase: "parse-html", domNodes: countDomNodes(parsed.root), stylesheets: parsed.stylesheets.length });
   const rules = parseStylesheets(parsed.stylesheets);
   profile({ phase: "parse-css", cssRules: rules.length });
-  const diagnostics = createDiagnostics(options);
+  const diagnostics = createDiagnostics(options.diagnostics);
   const styled = computeStyles(parsed.root, rules, {
     ...defaultStyle(options.defaultFontSize ?? 12),
     color: options.defaultColor,
@@ -43,31 +44,6 @@ export function htmlToBoxpdf(html: string, options: HtmlToBoxpdfOptions): Render
   profile({ phase: "render-tree", ...countBoxNodes(result.nodes) });
   profile({ phase: "finish" });
   return result;
-}
-
-function createDiagnostics(options: HtmlToBoxpdfOptions): { recordUnsupportedCss: (declaration: CssDeclaration) => void; toJSON: () => HtmlDiagnostics } | undefined {
-  if (!options.diagnostics?.unsupportedCss) return undefined;
-  const sampleLimit = options.diagnostics.sampleLimit ?? 3;
-  const unsupported = new Map<string, { property: string; value: string; count: number; samples: string[] }>();
-  return {
-    recordUnsupportedCss(declaration) {
-      const property = declaration.property.trim().toLowerCase();
-      const value = declaration.value.trim();
-      const key = `${property}\n${value}`;
-      const entry = unsupported.get(key) ?? { property, value, count: 0, samples: [] };
-      entry.count += 1;
-      const sample = declaration.selector ? `${declaration.selector} { ${property}: ${value} }` : `${property}: ${value}`;
-      if (entry.samples.length < sampleLimit && !entry.samples.includes(sample)) entry.samples.push(sample);
-      unsupported.set(key, entry);
-    },
-    toJSON() {
-      return {
-        unsupportedCss: [...unsupported.values()]
-          .sort((a, b) => b.count - a.count || a.property.localeCompare(b.property))
-          .map(({ property, value, count, samples }) => ({ property, value, count, samples: samples.length > 0 ? samples : undefined }))
-      };
-    }
-  };
 }
 
 export { parseHtml };

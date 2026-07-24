@@ -28,6 +28,7 @@ export interface LoadedFaces {
   normal: PDFFont;
   bold: PDFFont;
   italic: PDFFont;
+  boldItalic: PDFFont;
   families: FontFamilyMap;
 }
 
@@ -61,7 +62,7 @@ export async function loadFaces(pdf: PDFDocument, spec: FaceSpec, baseUrl: strin
     families[name.trim()] = await loadFamily(pdf, familySpec, baseUrl);
   }
 
-  return { normal, bold, italic, families };
+  return { normal, bold, italic, boldItalic, families };
 }
 
 async function loadFamily(pdf: PDFDocument, spec: string, baseUrl: string): Promise<FontFamilyMap[string]> {
@@ -91,8 +92,17 @@ export async function loadImages(
   baseUrl: string,
   options: LoadImagesOptions = {}
 ): Promise<Map<string, PDFImage>> {
+  return loadImageUrls(pdf, imageUrls(html), baseUrl, options);
+}
+
+export async function loadImageUrls(
+  pdf: PDFDocument,
+  urls: Iterable<string>,
+  baseUrl: string,
+  options: LoadImagesOptions = {}
+): Promise<Map<string, PDFImage>> {
   const images = new Map<string, PDFImage>();
-  for (const url of imageUrls(html)) {
+  for (const url of urls) {
     const resolved = resolveAssetUrl(url, baseUrl);
     if (images.has(resolved)) continue;
     try {
