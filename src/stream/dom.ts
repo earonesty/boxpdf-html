@@ -16,13 +16,35 @@ interface Frame {
   children: HtmlNode[];
   omitted: boolean;
   transparent: boolean;
+  fragmentable: boolean;
+  continuationId?: string;
+  emittedFragments: number;
+  bufferedNodes: number;
+  trailingTextBytes: number;
 }
 
 export interface StreamDomStats {
   emittedRoots: number;
   maxOpenDepth: number;
   maxPendingRoots: number;
+  maxBufferedNodes: number;
 }
+
+export interface VisitHtmlRootsOptions {
+  /** Flush a fragment after this many completed children. Default 64. */
+  fragmentChildren?: number;
+  /** Select structurally fragmentable vertical containers. */
+  canFragment?: (element: HtmlElementNode) => boolean;
+  /** Maximum nodes retained across open atomic contexts. Default 100,000. */
+  maxBufferedNodes?: number;
+  /** Maximum UTF-8 bytes in one uninterrupted text node. Default 8 MiB. */
+  maxTextBytes?: number;
+}
+
+const DEFAULT_FRAGMENTABLE_TAGS = new Set([
+  "address", "article", "aside", "blockquote", "div", "fieldset", "footer",
+  "form", "header", "main", "nav", "section"
+]);
 
 /**
  * Incrementally parse HTML and release completed root flow nodes. The visitor
@@ -31,7 +53,8 @@ export interface StreamDomStats {
  */
 export async function visitHtmlRoots(
   input: AsyncIterable<string | Uint8Array>,
-  visit: (node: HtmlNode) => void | Promise<void>
+  visit: (node: HtmlNode) => void | Promise<void>,
+  options: VisitHtmlRootsOptions = {}
 ): Promise<StreamDomStats> {
   const parser = new SAXParser();
   // SAXParser passes source bytes through its readable side; drain them so
@@ -42,18 +65,43 @@ export async function visitHtmlRoots(
     tag: "#root",
     children: [],
     omitted: false,
-    transparent: true
+    transparent: true,
+    fragmentable: false,
+    emittedFragments: 0,
+    bufferedNodes: 0,
+    trailingTextBytes: 0
   };
   const stack: Frame[] = [root];
   const pending: HtmlNode[] = [];
-  const stats: StreamDomStats = { emittedRoots: 0, maxOpenDepth: 0, maxPendingRoots: 0 };
+  const stats: StreamDomStats = {
+    emittedRoots: 0,
+    maxOpenDepth: 0,
+    maxPendingRoots: 0,
+    maxBufferedNodes: 0
+  };
+  const fragmentChildren = Math.max(1, options.fragmentChildren ?? 64);
+  const maxBufferedNodes = Math.max(1, options.maxBufferedNodes ?? 100_000);
+  const maxTextBytes = Math.max(1, options.maxTextBytes ?? 8 * 1024 * 1024);
+  const canFragment = (element: HtmlElementNode): boolean =>
+    DEFAULT_FRAGMENTABLE_TAGS.has(element.tag) &&
+    (options.canFragment ? options.canFragment(element) : true);
+  let continuationSequence = 0;
 
   parser.on("startTag", (token: StartTag) => {
     const tag = token.tagName.toLowerCase();
     const parent = stack[stack.length - 1]!;
     const omitted = parent.omitted || OMITTED_TAGS.has(tag);
     const transparent = TRANSPARENT_DOCUMENT_TAGS.has(tag);
-    const frame: Frame = { tag, children: [], omitted, transparent };
+    const frame: Frame = {
+      tag,
+      children: [],
+      omitted,
+      transparent,
+      fragmentable: false,
+      emittedFragments: 0,
+      bufferedNodes: 0,
+      trailingTextBytes: 0
+    };
     if (!omitted && !transparent) {
       frame.node = {
         kind: "element",
@@ -61,6 +109,8 @@ export async function visitHtmlRoots(
         attrs: Object.fromEntries(token.attrs.map((attr) => [attr.name, attr.value])),
         children: []
       };
+      frame.fragmentable = canFragment(frame.node);
+      if (frame.fragmentable) frame.continuationId = `html-${continuationSequence++}`;
     }
     if (VOID_TAGS.has(tag) || token.selfClosing) {
       closeFrame(frame, parent, pending);
@@ -73,7 +123,14 @@ export async function visitHtmlRoots(
   parser.on("text", (token: Text) => {
     const frame = stack[stack.length - 1]!;
     if (frame.omitted) return;
-    appendText(frame.children, token.text);
+    frame.trailingTextBytes += new TextEncoder().encode(token.text).byteLength;
+    if (frame.trailingTextBytes > maxTextBytes) {
+      throw new Error(
+        `streaming HTML atomic text exceeded ${maxTextBytes} bytes; ` +
+          "increase maxTextBytes or split the text into block elements"
+      );
+    }
+    if (appendText(frame.children, token.text)) frame.bufferedNodes += 1;
   });
 
   parser.on("endTag", (token: EndTag) => {
@@ -83,13 +140,23 @@ export async function visitHtmlRoots(
     while (stack.length - 1 >= index) {
       const frame = stack.pop()!;
       closeFrame(frame, stack[stack.length - 1]!, pending);
+      flushReady(stack, pending, fragmentChildren);
     }
   });
 
   for await (const chunk of input) {
     const text = typeof chunk === "string" ? chunk : decoder.decode(chunk, { stream: true });
     if (text && !parser.write(text)) await once(parser, "drain");
+    flushReady(stack, pending, fragmentChildren);
     stats.maxPendingRoots = Math.max(stats.maxPendingRoots, pending.length);
+    const retained = bufferedNodes(stack);
+    stats.maxBufferedNodes = Math.max(stats.maxBufferedNodes, retained);
+    if (retained > maxBufferedNodes) {
+      throw new Error(
+        `streaming HTML atomic layout exceeded ${maxBufferedNodes} buffered nodes; ` +
+          "increase maxBufferedNodes or split the atomic layout"
+      );
+    }
     await drainPending(pending, visit, stats);
   }
   const tail = decoder.decode();
@@ -103,6 +170,8 @@ export async function visitHtmlRoots(
   }
   pending.push(...root.children);
   root.children = [];
+  root.bufferedNodes = 0;
+  root.trailingTextBytes = 0;
   stats.maxPendingRoots = Math.max(stats.maxPendingRoots, pending.length);
   await drainPending(pending, visit, stats);
   return stats;
@@ -121,30 +190,60 @@ function closeFrame(frame: Frame, parent: Frame, pending: HtmlNode[]): void {
     for (const child of frame.children) appendChild(parent, child, pending);
     return;
   }
-  const node = frame.node!;
-  node.children = frame.children;
+  const node = materializeFrame(frame, true);
   for (const child of node.children) child.parent = node;
   appendChild(parent, node, pending);
+}
+
+function materializeFrame(frame: Frame, final: boolean): HtmlElementNode {
+  const node: HtmlElementNode = {
+    ...frame.node!,
+    children: frame.children
+  };
+  if (frame.fragmentable && (frame.emittedFragments > 0 || !final)) {
+    node.streamContinuation = { id: frame.continuationId!, final };
+  }
+  frame.children = [];
+  frame.bufferedNodes = 0;
+  frame.trailingTextBytes = 0;
+  frame.emittedFragments += 1;
+  return node;
+}
+
+function flushReady(stack: Frame[], pending: HtmlNode[], fragmentChildren: number): void {
+  for (let index = stack.length - 1; index > 0; index -= 1) {
+    const frame = stack[index]!;
+    if (!frame.fragmentable || frame.children.length < fragmentChildren) continue;
+    const fragment = materializeFrame(frame, false);
+    for (const child of fragment.children) child.parent = fragment;
+    appendChild(stack[index - 1]!, fragment, pending);
+  }
 }
 
 function appendChild(parent: Frame, child: HtmlNode, pending: HtmlNode[]): void {
   if (parent.tag === "#root") {
     pending.push(...parent.children);
     parent.children = [];
+    parent.bufferedNodes = 0;
+    parent.trailingTextBytes = 0;
     pending.push(child);
     return;
   }
   parent.children.push(child);
+  parent.bufferedNodes += countNodes([child]);
+  parent.trailingTextBytes = 0;
 }
 
-function appendText(children: HtmlNode[], value: string): void {
-  if (!value) return;
+function appendText(children: HtmlNode[], value: string): boolean {
+  if (!value) return false;
   const previous = children[children.length - 1];
   if (previous?.kind === "text") {
     previous.value += value;
+    return false;
   } else {
     const text: HtmlTextNode = { kind: "text", value };
     children.push(text);
+    return true;
   }
 }
 
@@ -157,4 +256,17 @@ async function drainPending(
     await visit(pending.shift()!);
     stats.emittedRoots += 1;
   }
+}
+
+function bufferedNodes(stack: Frame[]): number {
+  return stack.reduce((sum, frame) => sum + frame.bufferedNodes, 0);
+}
+
+function countNodes(nodes: HtmlNode[]): number {
+  let count = 0;
+  for (const node of nodes) {
+    count += 1;
+    if (node.kind === "element") count += countNodes(node.children);
+  }
+  return count;
 }

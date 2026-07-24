@@ -26,6 +26,12 @@ export interface StreamHtmlToPdfOptions extends HtmlToBoxpdfOptions {
   size?: PageSize;
   debug?: boolean;
   warnings?: boolean;
+  /** Completed children retained per ordinary streamed wrapper. Default 64. */
+  fragmentChildren?: number;
+  /** Hard cap for nodes retained inside atomic layout contexts. */
+  maxBufferedNodes?: number;
+  /** Hard cap for one uninterrupted UTF-8 text node. */
+  maxTextBytes?: number;
 }
 
 export interface StreamHtmlToPdfResult {
@@ -54,11 +60,20 @@ export async function streamHtmlToPdf(
 
   const producer = (async () => {
     try {
-      dom = await visitHtmlRoots(openInput(), async (node) => {
-        for (const rendered of renderRoot(node, rules, options, warnings)) {
-          await writer.write(rendered);
+      dom = await visitHtmlRoots(
+        openInput(),
+        async (node) => {
+          for (const rendered of renderRoot(node, rules, options, warnings)) {
+            await writer.write(rendered);
+          }
+        },
+        {
+          fragmentChildren: options.fragmentChildren,
+          maxBufferedNodes: options.maxBufferedNodes,
+          maxTextBytes: options.maxTextBytes,
+          canFragment: (element) => isStreamableElement(element, rules, options)
         }
-      });
+      );
       await writer.close();
     } catch (error) {
       await writer.abort(error).catch(() => undefined);
@@ -82,6 +97,52 @@ export async function streamHtmlToPdf(
     await writer.abort(error).catch(() => undefined);
     throw error;
   }
+}
+
+function isStreamableElement(
+  element: HtmlElementNode,
+  rules: ReturnType<typeof parseStylesheets>,
+  options: StreamHtmlToPdfOptions
+): boolean {
+  if (
+    rules.some((rule) =>
+      /(?:^|[^\\])[+~]|:(?:first|last|nth)-(?:child|of-type)|:not\(\s*:(?:first|last)-child\s*\)/i.test(
+        rule.selector
+      )
+    )
+  ) {
+    return false;
+  }
+  const root: HtmlElementNode = {
+    kind: "element",
+    tag: "body",
+    attrs: {},
+    children: [element]
+  };
+  element.parent = root;
+  const styled = computeStyles(
+    root,
+    rules,
+    {
+      ...defaultStyle(options.defaultFontSize ?? 12),
+      color: options.defaultColor,
+      lineHeight: options.defaultLineHeight
+    },
+    options.width
+  );
+  const child = styled.children[0];
+  if (!child || "text" in child) return false;
+  const style = child.style;
+  return (
+    style.display === "block" &&
+    (!style.float || style.float === "none") &&
+    style.position !== "absolute" &&
+    style.height === undefined &&
+    style.rotate === undefined &&
+    style.translate === undefined &&
+    style.scale === undefined &&
+    (!style.transform || style.transform.length === 0)
+  );
 }
 
 function renderRoot(

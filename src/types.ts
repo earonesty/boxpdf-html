@@ -65,6 +65,8 @@ export interface HtmlElementNode {
   attrs: Record<string, string>;
   children: HtmlNode[];
   parent?: HtmlElementNode;
+  /** Internal marker for bounded fragments of one logical streamed element. */
+  streamContinuation?: { id: string; final: boolean };
 }
 
 export type HtmlNode = HtmlTextNode | HtmlElementNode;

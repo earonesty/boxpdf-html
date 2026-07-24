@@ -38,6 +38,42 @@ describe("streaming HTML structure", () => {
     expect(stats.maxPendingRoots).toBeLessThan(10);
     expect(stats.maxOpenDepth).toBe(1);
   });
+
+  it("releases bounded fragments from one long ordinary wrapper", async () => {
+    const source = `<main>${Array.from({ length: 1_000 }, (_, index) => `<p>row ${index}</p>`).join("")}</main>`;
+    const fragments: HtmlNode[] = [];
+    const stats = await visitHtmlRoots(
+      chunks(source, 128),
+      (node) => {
+        fragments.push(node);
+      },
+      { fragmentChildren: 16 }
+    );
+
+    expect(fragments.length).toBeGreaterThan(50);
+    expect(fragments.every((node) => node.kind === "element" && node.tag === "main")).toBe(true);
+    expect((fragments[0] as Extract<HtmlNode, { kind: "element" }>).streamContinuation?.final).toBe(false);
+    expect((fragments.at(-1) as Extract<HtmlNode, { kind: "element" }>).streamContinuation?.final).toBe(true);
+    expect(stats.maxBufferedNodes).toBeLessThan(40);
+  });
+
+  it("rejects oversized atomic layouts deterministically", async () => {
+    const source = `<div style="display:flex">${Array.from({ length: 20 }, (_, index) => `<span>${index}</span>`).join("")}</div>`;
+    await expect(
+      visitHtmlRoots(chunks(source, 64), () => undefined, {
+        canFragment: () => false,
+        maxBufferedNodes: 10
+      })
+    ).rejects.toThrow(/atomic layout exceeded 10 buffered nodes/);
+  });
+
+  it("rejects an oversized uninterrupted text node", async () => {
+    await expect(
+      visitHtmlRoots(chunks(`<p>${"x".repeat(100)}</p>`, 8), () => undefined, {
+        maxTextBytes: 32
+      })
+    ).rejects.toThrow(/atomic text exceeded 32 bytes/);
+  });
 });
 
 async function* chunks(source: string, size: number): AsyncIterable<Uint8Array> {
@@ -62,6 +98,7 @@ function strip(value: HtmlNode[] | HtmlNode): unknown {
     kind: "element",
     tag: value.tag,
     attrs: value.attrs,
-    children: value.children.map(strip)
+    children: value.children.map(strip),
+    ...(value.streamContinuation ? { streamContinuation: value.streamContinuation } : {})
   };
 }

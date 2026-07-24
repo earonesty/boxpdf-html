@@ -75,7 +75,18 @@ function renderBlock(node: StyledElement, options: HtmlToBoxpdfOptions, warnings
     alignSelf: node.style.alignSelf,
     align: stretch ? "stretch" as const : "start" as const
   };
-  return vstack(style, ...children);
+  const rendered = vstack(style, ...children);
+  if (node.node.streamContinuation && rendered.kind === "vstack") {
+    (
+      rendered as unknown as {
+        fragmentation?: { kind: "continuation"; id: string; final: boolean };
+      }
+    ).fragmentation = {
+      kind: "continuation",
+      ...node.node.streamContinuation
+    };
+  }
+  return rendered;
 }
 
 function renderBlockChildren(node: StyledElement, options: HtmlToBoxpdfOptions, warnings: string[]): BoxNode[] {
