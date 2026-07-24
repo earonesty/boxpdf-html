@@ -6,6 +6,7 @@ import {
   type PageSize,
   type StreamFlowOptions
 } from "boxpdf";
+import * as boxpdfCapabilities from "boxpdf";
 import { parseStylesheets } from "../css.js";
 import { createDiagnostics, type HtmlDiagnosticsRecorder } from "../diagnostics.js";
 import { renderStyledTree } from "../render.js";
@@ -58,6 +59,17 @@ export async function streamHtmlToPdf(
   writable: WritableStream<Uint8Array>,
   options: StreamHtmlToPdfOptions
 ): Promise<StreamHtmlToPdfResult> {
+  if (
+    typeof (
+      boxpdfCapabilities as unknown as {
+        flowContinuation?: unknown;
+      }
+    ).flowContinuation !== "function"
+  ) {
+    throw new Error(
+      "streamHtmlToPdf requires boxpdf 1.12.0 or newer; upgrade boxpdf before using --stream"
+    );
+  }
   const preflight = await preflightHtml(openInput());
   await options.prepare?.(preflight);
   prepareFonts(options, preflight.glyphs);
