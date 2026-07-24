@@ -17,6 +17,9 @@ importers:
       parse5:
         specifier: ^8.0.0
         version: 8.0.1
+      parse5-sax-parser:
+        specifier: ^8.0.0
+        version: 8.0.0
       pdf-lib:
         specifier: ^1.17.1
         version: 1.17.1
@@ -1022,6 +1025,9 @@ packages:
   pako@1.0.11:
     resolution: {integrity: sha512-4hLB8Py4zZce5s4yd9XzopqwVv/yGNhV1Bl8NTmCq1763HeK2+EwVTv+leGeL13Dnh2wfbqowVPXCIO0z4taYw==}
 
+  parse5-sax-parser@8.0.0:
+    resolution: {integrity: sha512-/dQ8UzHZwnrzs3EvDj6IkKrD/jIZyTlB+8XrHJvcjNgRdmWruNdN9i9RK/JtxakmlUdPwKubKPTCqvbTgzGhrw==}
+
   parse5@8.0.1:
     resolution: {integrity: sha512-z1e/HMG90obSGeidlli3hj7cbocou0/wa5HacvI3ASx34PecNjNQeaHNo5WIZpWofN9kgkqV1q5YvXe3F0FoPw==}
 
@@ -1999,6 +2005,10 @@ snapshots:
   obug@2.1.1: {}
 
   pako@1.0.11: {}
+
+  parse5-sax-parser@8.0.0:
+    dependencies:
+      parse5: 8.0.1
 
   parse5@8.0.1:
     dependencies:
