@@ -43,7 +43,7 @@ export interface VisitHtmlRootsOptions {
 
 const DEFAULT_FRAGMENTABLE_TAGS = new Set([
   "address", "article", "aside", "blockquote", "div", "fieldset", "footer",
-  "form", "header", "main", "nav", "section"
+  "form", "header", "main", "nav", "section", "table", "tbody"
 ]);
 
 /**
@@ -195,17 +195,25 @@ function closeFrame(frame: Frame, parent: Frame, pending: HtmlNode[]): void {
   appendChild(parent, node, pending);
 }
 
-function materializeFrame(frame: Frame, final: boolean): HtmlElementNode {
+function materializeFrame(
+  frame: Frame,
+  final: boolean,
+  childCount = frame.children.length
+): HtmlElementNode {
+  const children = frame.children.splice(0, childCount);
   const node: HtmlElementNode = {
     ...frame.node!,
-    children: frame.children
+    children
   };
   if (frame.fragmentable && (frame.emittedFragments > 0 || !final)) {
-    node.streamContinuation = { id: frame.continuationId!, final };
+    node.streamContinuation = {
+      id: frame.continuationId!,
+      final,
+      first: frame.emittedFragments === 0
+    };
   }
-  frame.children = [];
-  frame.bufferedNodes = 0;
-  frame.trailingTextBytes = 0;
+  frame.bufferedNodes -= countNodes(children);
+  if (frame.children.length === 0) frame.trailingTextBytes = 0;
   frame.emittedFragments += 1;
   return node;
 }
@@ -213,8 +221,12 @@ function materializeFrame(frame: Frame, final: boolean): HtmlElementNode {
 function flushReady(stack: Frame[], pending: HtmlNode[], fragmentChildren: number): void {
   for (let index = stack.length - 1; index > 0; index -= 1) {
     const frame = stack[index]!;
-    if (!frame.fragmentable || frame.children.length < fragmentChildren) continue;
-    const fragment = materializeFrame(frame, false);
+    const hasContinuedChild = frame.children.some(
+      (child) => child.kind === "element" && child.streamContinuation
+    );
+    const limit = frame.tag === "table" && hasContinuedChild ? 1 : fragmentChildren;
+    if (!frame.fragmentable || frame.children.length <= limit) continue;
+    const fragment = materializeFrame(frame, false, frame.children.length - 1);
     for (const child of fragment.children) child.parent = fragment;
     appendChild(stack[index - 1]!, fragment, pending);
   }

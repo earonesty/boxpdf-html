@@ -29,6 +29,30 @@ describe("streamHtmlToPdf", () => {
     expect(result.dom.maxBufferedNodes).toBeLessThan(150);
     expect(result.preflight.htmlBytes).toBe(new TextEncoder().encode(source).byteLength);
   });
+
+  it("streams one long table in bounded row-group fragments", async () => {
+    const source = `<table><tbody>${Array.from(
+      { length: 500 },
+      (_, index) => `<tr><td>Row ${index}</td><td>${index}</td></tr>`
+    ).join("")}</tbody></table>`;
+    const pdf = await PDFDocument.create({ updateMetadata: false });
+    const font = await pdf.embedFont(StandardFonts.Helvetica);
+    const chunks: Uint8Array[] = [];
+    const result = await streamHtmlToPdf(
+      () => inputChunks(source, 128),
+      new WritableStream({
+        write(chunk) {
+          chunks.push(chunk);
+        }
+      }),
+      { pdf, font, width: 532, margin: 40, fragmentChildren: 16 }
+    );
+
+    expect(result.pageCount).toBeGreaterThan(5);
+    expect(result.dom.emittedRoots).toBeGreaterThan(10);
+    expect(result.dom.maxBufferedNodes).toBeLessThan(200);
+    expect((await PDFDocument.load(concat(chunks))).getPageCount()).toBe(result.pageCount);
+  });
 });
 
 async function* inputChunks(source: string, size: number): AsyncIterable<Uint8Array> {

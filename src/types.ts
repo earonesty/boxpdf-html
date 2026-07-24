@@ -66,7 +66,7 @@ export interface HtmlElementNode {
   children: HtmlNode[];
   parent?: HtmlElementNode;
   /** Internal marker for bounded fragments of one logical streamed element. */
-  streamContinuation?: { id: string; final: boolean };
+  streamContinuation?: { id: string; final: boolean; first: boolean };
 }
 
 export type HtmlNode = HtmlTextNode | HtmlElementNode;
