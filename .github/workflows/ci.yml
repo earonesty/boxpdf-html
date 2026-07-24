@@ -58,6 +58,8 @@ jobs:
           pnpm --dir ../boxpdf pack --pack-destination "$PWD/.linked-core"
           mkdir .linked-core/package
           tar -xzf .linked-core/boxpdf-*.tgz -C .linked-core/package --strip-components=1
+          mkdir .linked-core/package/node_modules
+          ln -s "$GITHUB_WORKSPACE/boxpdf/node_modules/@pdf-lib" .linked-core/package/node_modules/@pdf-lib
           unlink node_modules/boxpdf
           ln -s "$PWD/.linked-core/package" node_modules/boxpdf
 
