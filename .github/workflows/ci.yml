@@ -52,10 +52,14 @@ jobs:
         working-directory: boxpdf
         run: pnpm install --frozen-lockfile && pnpm run build
 
-      - name: Link streaming boxpdf
+      - name: Pack and link streaming boxpdf
         run: |
+          mkdir .linked-core
+          pnpm --dir ../boxpdf pack --pack-destination "$PWD/.linked-core"
+          mkdir .linked-core/package
+          tar -xzf .linked-core/boxpdf-*.tgz -C .linked-core/package --strip-components=1
           unlink node_modules/boxpdf
-          ln -s "$GITHUB_WORKSPACE/boxpdf" node_modules/boxpdf
+          ln -s "$PWD/.linked-core/package" node_modules/boxpdf
 
       - name: Install visual dependencies
         run: sudo apt-get update && sudo apt-get install -y poppler-utils fonts-dejavu-core
