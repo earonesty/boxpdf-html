@@ -34,9 +34,15 @@ try {
     throw new Error(`retained heap grew by ${formatBytes(retainedGrowth)} for a 10x input`);
   }
   for (const result of results) {
-    if (result.dom.maxBufferedNodes > 8) {
-      throw new Error(`DOM retained ${result.dom.maxBufferedNodes} nodes for independent hidden roots`);
+    if (result.dom.maxBufferedNodes > 160) {
+      throw new Error(`DOM retained ${result.dom.maxBufferedNodes} nodes inside one streamed wrapper`);
     }
+  }
+  if (large.dom.emittedRoots < small.dom.emittedRoots * 8) {
+    throw new Error(
+      `continuation fragments did not scale with input ` +
+      `(${small.dom.emittedRoots} to ${large.dom.emittedRoots})`
+    );
   }
 
   console.log(
@@ -51,17 +57,19 @@ try {
 
 async function generateHtml(path, targetBytes) {
   const output = createWriteStream(path);
-  const header = "<!doctype html><style>.skip{display:none}</style>\n";
+  const header = "<!doctype html><style>.skip{display:none}</style><main>\n";
+  const footer = "</main>\n";
   const record = `<p class="skip">${"bounded-stream ".repeat(72)}</p>\n`;
   let written = Buffer.byteLength(header);
   output.write(header);
-  while (written + Buffer.byteLength(record) <= targetBytes) {
+  while (written + Buffer.byteLength(record) + Buffer.byteLength(footer) <= targetBytes) {
     if (!output.write(record)) await once(output, "drain");
     written += Buffer.byteLength(record);
   }
-  const remaining = targetBytes - written;
+  const remaining = targetBytes - written - Buffer.byteLength(footer);
   if (remaining >= 7) output.write(`<!--${"x".repeat(remaining - 7)}-->`);
-  output.end();
+  else if (remaining > 0) output.write(" ".repeat(remaining));
+  output.end(footer);
   await once(output, "close");
 }
 

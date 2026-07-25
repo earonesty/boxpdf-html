@@ -62,7 +62,7 @@
     "url": "https://github.com/earonesty/boxpdf-html/issues"
   },
   "dependencies": {
-    "boxpdf": "^1.11.0",
+    "boxpdf": "^1.12.0",
     "css-tree": "^3.1.0",
     "parse5": "^8.0.0",
     "parse5-sax-parser": "^8.0.0",

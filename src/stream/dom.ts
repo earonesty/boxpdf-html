@@ -45,6 +45,13 @@ const DEFAULT_FRAGMENTABLE_TAGS = new Set([
   "address", "article", "aside", "blockquote", "div", "fieldset", "footer",
   "form", "header", "main", "nav", "section", "table", "tbody"
 ]);
+const P_CLOSING_START_TAGS = new Set([
+  "address", "article", "aside", "blockquote", "details", "div", "dl",
+  "fieldset", "figcaption", "figure", "footer", "form", "h1", "h2", "h3",
+  "h4", "h5", "h6", "header", "hgroup", "hr", "main", "menu", "nav", "ol",
+  "p", "pre", "search", "section", "table", "ul"
+]);
+const HEADING_TAGS = new Set(["h1", "h2", "h3", "h4", "h5", "h6"]);
 
 /**
  * Incrementally parse HTML and release completed root flow nodes. The visitor
@@ -87,8 +94,7 @@ export async function visitHtmlRoots(
     (options.canFragment ? options.canFragment(element) : true);
   let continuationSequence = 0;
 
-  parser.on("startTag", (token: StartTag) => {
-    const tag = token.tagName.toLowerCase();
+  const createFrame = (tag: string, attrs: Record<string, string> = {}): Frame => {
     const parent = stack[stack.length - 1]!;
     const omitted = parent.omitted || OMITTED_TAGS.has(tag);
     const transparent = TRANSPARENT_DOCUMENT_TAGS.has(tag);
@@ -103,15 +109,22 @@ export async function visitHtmlRoots(
       trailingTextBytes: 0
     };
     if (!omitted && !transparent) {
-      frame.node = {
-        kind: "element",
-        tag,
-        attrs: Object.fromEntries(token.attrs.map((attr) => [attr.name, attr.value])),
-        children: []
-      };
+      frame.node = { kind: "element", tag, attrs, children: [] };
       frame.fragmentable = canFragment(frame.node);
       if (frame.fragmentable) frame.continuationId = `html-${continuationSequence++}`;
     }
+    return frame;
+  };
+
+  parser.on("startTag", (token: StartTag) => {
+    const tag = token.tagName.toLowerCase();
+    closeImpliedFrames(tag, stack, pending, fragmentChildren);
+    insertTableContainers(tag, stack, createFrame, stats);
+    const parent = stack[stack.length - 1]!;
+    const frame = createFrame(
+      tag,
+      Object.fromEntries(token.attrs.map((attr) => [attr.name, attr.value]))
+    );
     if (VOID_TAGS.has(tag) || token.selfClosing) {
       closeFrame(frame, parent, pending);
     } else {
@@ -182,6 +195,90 @@ function lastFrameIndex(stack: Frame[], tag: string): number {
     if (stack[index]!.tag === tag) return index;
   }
   return -1;
+}
+
+/**
+ * Apply the common optional-end-tag rules that an HTML tree builder performs
+ * but the SAX tokenizer intentionally does not.
+ */
+function closeImpliedFrames(
+  startTag: string,
+  stack: Frame[],
+  pending: HtmlNode[],
+  fragmentChildren: number
+): void {
+  if (P_CLOSING_START_TAGS.has(startTag)) {
+    closeNearest(stack, new Set(["p"]), pending, fragmentChildren);
+  }
+  if (startTag === "li") {
+    closeNearest(stack, new Set(["li"]), pending, fragmentChildren, new Set(["ul", "ol", "menu"]));
+  } else if (startTag === "dt" || startTag === "dd") {
+    closeNearest(stack, new Set(["dt", "dd"]), pending, fragmentChildren, new Set(["dl"]));
+  } else if (startTag === "rt" || startTag === "rp") {
+    closeNearest(stack, new Set(["rt", "rp"]), pending, fragmentChildren, new Set(["ruby"]));
+  } else if (startTag === "option") {
+    closeNearest(stack, new Set(["option"]), pending, fragmentChildren, new Set(["select", "datalist"]));
+  } else if (startTag === "optgroup") {
+    const selectScope = new Set(["select", "datalist"]);
+    closeNearest(stack, new Set(["option"]), pending, fragmentChildren, selectScope);
+    closeNearest(stack, new Set(["optgroup"]), pending, fragmentChildren, selectScope);
+  } else if (startTag === "tr") {
+    closeNearest(stack, new Set(["tr"]), pending, fragmentChildren, new Set(["table"]));
+  } else if (startTag === "td" || startTag === "th") {
+    closeNearest(stack, new Set(["td", "th"]), pending, fragmentChildren, new Set(["table"]));
+  } else if (startTag === "thead" || startTag === "tbody" || startTag === "tfoot") {
+    closeNearest(
+      stack,
+      new Set(["thead", "tbody", "tfoot"]),
+      pending,
+      fragmentChildren,
+      new Set(["table"])
+    );
+  } else if (HEADING_TAGS.has(startTag)) {
+    closeNearest(stack, HEADING_TAGS, pending, fragmentChildren);
+  }
+}
+
+function closeNearest(
+  stack: Frame[],
+  tags: Set<string>,
+  pending: HtmlNode[],
+  fragmentChildren: number,
+  scopeBoundaries: Set<string> = new Set()
+): void {
+  let index = -1;
+  for (let cursor = stack.length - 1; cursor > 0; cursor -= 1) {
+    if (tags.has(stack[cursor]!.tag)) {
+      index = cursor;
+      break;
+    }
+    if (scopeBoundaries.has(stack[cursor]!.tag)) break;
+  }
+  if (index < 1) return;
+  while (stack.length - 1 >= index) {
+    const frame = stack.pop()!;
+    closeFrame(frame, stack[stack.length - 1]!, pending);
+    flushReady(stack, pending, fragmentChildren);
+  }
+}
+
+/** Insert the tbody/tr elements implied by common abbreviated table markup. */
+function insertTableContainers(
+  startTag: string,
+  stack: Frame[],
+  createFrame: (tag: string, attrs?: Record<string, string>) => Frame,
+  stats: StreamDomStats
+): void {
+  let parent = stack[stack.length - 1]!;
+  if ((startTag === "tr" || startTag === "td" || startTag === "th") && parent.tag === "table") {
+    stack.push(createFrame("tbody"));
+    stats.maxOpenDepth = Math.max(stats.maxOpenDepth, stack.length - 1);
+    parent = stack[stack.length - 1]!;
+  }
+  if ((startTag === "td" || startTag === "th") && ["thead", "tbody", "tfoot"].includes(parent.tag)) {
+    stack.push(createFrame("tr"));
+    stats.maxOpenDepth = Math.max(stats.maxOpenDepth, stack.length - 1);
+  }
 }
 
 function closeFrame(frame: Frame, parent: Frame, pending: HtmlNode[]): void {

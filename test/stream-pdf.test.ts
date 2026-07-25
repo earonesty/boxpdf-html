@@ -54,6 +54,29 @@ describe("streamHtmlToPdf", () => {
     expect((await PDFDocument.load(concat(chunks))).getPageCount()).toBe(result.pageCount);
   });
 
+  it("keeps fragment-sensitive selectors in one atomic tree", async () => {
+    const selectors = [
+      "main:has(.special)",
+      "p:only-child",
+      "p:nth-last-child(2)",
+      "p:nth-last-of-type(2)"
+    ];
+    for (const selector of selectors) {
+      const source = `<style>${selector} { color: red }</style><main>${Array.from(
+        { length: 8 },
+        (_, index) => `<p class="${index === 7 ? "special" : ""}">row ${index}</p>`
+      ).join("")}</main>`;
+      const pdf = await PDFDocument.create({ updateMetadata: false });
+      const font = await pdf.embedFont(StandardFonts.Helvetica);
+      const result = await streamHtmlToPdf(
+        () => inputChunks(source, 11),
+        new WritableStream(),
+        { pdf, font, width: 532, margin: 40, fragmentChildren: 2 }
+      );
+      expect(result.dom.emittedRoots, selector).toBe(1);
+    }
+  });
+
   it("finishes resource preparation before writing PDF bytes", async () => {
     const source = `<style>.prepared { background-image: url("paper.png"); filter: blur(2px) }</style>
       <p class="prepared">Prepared before output</p>`;

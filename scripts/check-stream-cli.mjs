@@ -7,7 +7,7 @@ import {
   writeFileSync
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { PDFDocument } from "pdf-lib";
 
 const root = resolve(dirname(new URL(import.meta.url).pathname), "..");
@@ -36,6 +36,22 @@ try {
     throw new Error("streamed stdin did not produce one PDF page");
   }
 
+  const encryptedPdf = join(tempRoot, "encrypted.pdf");
+  const passwordVariable = "BOXPDF_HTML_STREAM_TEST_PASSWORD";
+  const password = "bounded stream secret";
+  run([cli, fixture, encryptedPdf, "--stream", "--password-env", passwordVariable], {
+    env: { ...process.env, [passwordVariable]: password }
+  });
+  const encryptedInfo = spawnSync("pdfinfo", ["-upw", password, encryptedPdf], {
+    encoding: "utf8"
+  });
+  if (encryptedInfo.status !== 0 || !encryptedInfo.stdout.includes("Encrypted:")) {
+    throw new Error(
+      `streamed encryption validation failed: ` +
+      `${encryptedInfo.stderr || encryptedInfo.stdout || `exit ${encryptedInfo.status}`}`
+    );
+  }
+
   const protectedOutput = join(tempRoot, "protected.pdf");
   const sentinel = "existing output";
   const invalid = join(tempRoot, "atomic-overflow.html");
@@ -57,13 +73,13 @@ try {
     throw new Error("failed streamed conversion left a partial output directory");
   }
 
-  console.log("streamed CLI: file, CSS, stdin, parity, and failure cleanup pass");
+  console.log("streamed CLI: file, CSS, stdin, encryption, parity, and failure cleanup pass");
 } finally {
   rmSync(tempRoot, { recursive: true, force: true });
 }
 
-function run(args) {
-  execFileSync(process.execPath, args, { stdio: "pipe" });
+function run(args, options = {}) {
+  execFileSync(process.execPath, args, { stdio: "pipe", ...options });
 }
 
 function comparePages(bufferedPdf, streamedPdf) {
@@ -81,11 +97,12 @@ function comparePages(bufferedPdf, streamedPdf) {
 
 function rasterize(pdf, prefix) {
   execFileSync("pdftoppm", ["-png", "-r", "144", pdf, prefix], { stdio: "pipe" });
-  const stem = prefix.slice(prefix.lastIndexOf("/") + 1);
-  return readdirSync(dirname(prefix))
-    .filter((name) => name.startsWith(`${stem}-`) && name.endsWith(".png"))
+  const pages = readdirSync(dirname(prefix))
+    .filter((name) => name.startsWith(`${basename(prefix)}-`) && name.endsWith(".png"))
     .sort((left, right) => pageNumber(left) - pageNumber(right))
     .map((name) => join(dirname(prefix), name));
+  if (pages.length === 0) throw new Error(`no rasterized pages for ${pdf}`);
+  return pages;
 }
 
 function pageNumber(name) {

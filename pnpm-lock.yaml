@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       boxpdf:
-        specifier: ^1.11.0
-        version: 1.11.0(pdf-lib@1.17.1)
+        specifier: ^1.12.0
+        version: 1.12.0(pdf-lib@1.17.1)
       css-tree:
         specifier: ^3.1.0
         version: 3.2.1
@@ -759,8 +759,8 @@ packages:
   ast-v8-to-istanbul@1.0.5:
     resolution: {integrity: sha512-UPAgKJFSEGMWSDr3LX4tqnAb4f7KGT8O40Tyx8wbYmmZ/yn58lNCm8h3svs3eXgiGd5AXxz8NDOvXWvicq+rJA==}
 
-  boxpdf@1.11.0:
-    resolution: {integrity: sha512-q67oRpCOANO+GKnws8PxGiHvzKkOgm+uF39N2RXYb/07xr0Eh0ZK34CvgTiNipoE6M7981BVTLuGkZsSaRfdzQ==}
+  boxpdf@1.12.0:
+    resolution: {integrity: sha512-siihntz/7JZ+MngyWaMe2O140jWV9UN67qwmVHWUYLaFSCkR8LJ0SzDzwx7ernAzsOLidUA89UHUq79P00KHIQ==}
     engines: {node: '>=20'}
     hasBin: true
     peerDependencies:
@@ -1783,7 +1783,7 @@ snapshots:
       estree-walker: 3.0.3
       js-tokens: 10.0.0
 
-  boxpdf@1.11.0(pdf-lib@1.17.1):
+  boxpdf@1.12.0(pdf-lib@1.17.1):
     dependencies:
       '@pdf-lib/fontkit': 1.1.1
       pdf-lib: 1.17.1

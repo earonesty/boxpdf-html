@@ -17,6 +17,9 @@ import { preflightHtml, type HtmlPreflight } from "./preflight.js";
 
 export type HtmlStreamSource = () => AsyncIterable<string | Uint8Array>;
 
+const FRAGMENT_SENSITIVE_SELECTOR =
+  /(?:^|[^\\])[+~]|:(?:first|last|only|nth|nth-last)-(?:child|of-type)|:has\(/i;
+
 export interface StreamHtmlToPdfOptions extends HtmlToBoxpdfOptions {
   pdf: PDFDocument;
   /**
@@ -133,13 +136,7 @@ function isStreamableElement(
   rules: ReturnType<typeof parseStylesheets>,
   options: StreamHtmlToPdfOptions
 ): boolean {
-  if (
-    rules.some((rule) =>
-      /(?:^|[^\\])[+~]|:(?:first|last|nth)-(?:child|of-type)|:not\(\s*:(?:first|last)-child\s*\)/i.test(
-        rule.selector
-      )
-    )
-  ) {
+  if (rules.some((rule) => FRAGMENT_SENSITIVE_SELECTOR.test(rule.selector))) {
     return false;
   }
   const root: HtmlElementNode = {

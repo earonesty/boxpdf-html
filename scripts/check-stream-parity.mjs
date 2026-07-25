@@ -9,7 +9,7 @@ import {
   writeFileSync
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, extname, join, resolve } from "node:path";
+import { basename, dirname, extname, join, resolve } from "node:path";
 import { PDFDocument } from "pdf-lib";
 import { fontFamily, htmlToBoxpdf, streamHtmlToPdf } from "../dist/index.js";
 import { loadFont, renderFlow } from "boxpdf";
@@ -149,11 +149,12 @@ function imageUrls(source) {
 
 function rasterize(pdf, prefix) {
   execFileSync("pdftoppm", ["-png", "-r", "144", pdf, prefix], { stdio: "pipe" });
-  const stem = prefix.slice(prefix.lastIndexOf("/") + 1);
-  return readdirSync(dirname(prefix))
-    .filter((name) => name.startsWith(`${stem}-`) && name.endsWith(".png"))
+  const pages = readdirSync(dirname(prefix))
+    .filter((name) => name.startsWith(`${basename(prefix)}-`) && name.endsWith(".png"))
     .sort((left, right) => pageNumber(left) - pageNumber(right))
     .map((name) => resolve(dirname(prefix), name));
+  if (pages.length === 0) throw new Error(`no rasterized pages for ${pdf}`);
+  return pages;
 }
 
 function pageNumber(name) {

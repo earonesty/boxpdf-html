@@ -26,6 +26,23 @@ describe("streaming HTML structure", () => {
     }
   });
 
+  it("matches buffered HTML tree construction for optional end tags", async () => {
+    const cases = [
+      "<main><p>one<p>two</main>",
+      "<ul><li>one<li>two</ul>",
+      "<dl><dt>term<dd>definition<dt>next</dl>",
+      "<select><option>one<option>two</select>",
+      "<table><tr><td>a<td>b<tr><td>c<td>d</table>"
+    ];
+    for (const source of cases) {
+      const streamed: HtmlNode[] = [];
+      await visitHtmlRoots(chunks(source, 7), (node) => {
+        streamed.push(node);
+      });
+      expect(strip(streamed), source).toEqual(strip(parseHtml(source).root.children));
+    }
+  });
+
   it("releases root siblings incrementally with bounded pending nodes", async () => {
     const source = Array.from({ length: 1_000 }, (_, index) => `<p>row ${index}</p>`).join("");
     let visited = 0;

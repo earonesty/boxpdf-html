@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { PDFDocument, StandardFonts } from "pdf-lib";
 import { renderFlow } from "boxpdf";
 import { htmlToBoxpdf, streamHtmlToPdf } from "../dist/index.js";
@@ -82,10 +82,18 @@ async function* sourceChunks(value, size) {
 
 function rasterize(pdf, prefix) {
   execFileSync("pdftoppm", ["-png", "-r", "144", pdf, prefix], { stdio: "pipe" });
-  return readdirSync(dirname(prefix))
-    .filter((name) => name.startsWith(`${prefix.slice(prefix.lastIndexOf("/") + 1)}-`) && name.endsWith(".png"))
-    .sort()
+  const pages = readdirSync(dirname(prefix))
+    .filter((name) => name.startsWith(`${basename(prefix)}-`) && name.endsWith(".png"))
+    .sort((left, right) => pageNumber(left) - pageNumber(right))
     .map((name) => join(dirname(prefix), name));
+  if (pages.length === 0) throw new Error(`no rasterized pages for ${pdf}`);
+  return pages;
+}
+
+function pageNumber(name) {
+  const match = name.match(/-(\d+)\.png$/);
+  if (!match) throw new Error(`unexpected raster filename: ${name}`);
+  return Number(match[1]);
 }
 
 function concat(chunks) {
