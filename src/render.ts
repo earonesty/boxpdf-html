@@ -16,7 +16,7 @@ import {
   type ParagraphItem,
   type TextRunStyle
 } from "boxpdf";
-import type { GridTrack, HtmlToBoxpdfOptions, RenderResult, StyledElement, StyledNode, StyledText } from "./types.js";
+import type { GridTrack, HtmlElementNode, HtmlToBoxpdfOptions, RenderResult, StyledElement, StyledNode, StyledText } from "./types.js";
 import type { EdgesInput } from "boxpdf";
 
 export function renderStyledTree(root: StyledElement, options: HtmlToBoxpdfOptions): RenderResult {
@@ -75,7 +75,7 @@ function renderBlock(node: StyledElement, options: HtmlToBoxpdfOptions, warnings
     alignSelf: node.style.alignSelf,
     align: stretch ? "stretch" as const : "start" as const
   };
-  return vstack(style, ...children);
+  return markStreamContinuation(vstack(style, ...children), node);
 }
 
 function renderBlockChildren(node: StyledElement, options: HtmlToBoxpdfOptions, warnings: string[]): BoxNode[] {
@@ -732,29 +732,38 @@ function renderTable(node: StyledElement, options: HtmlToBoxpdfOptions, warnings
     return [renderBlock(node, options, warnings)];
   }
   const transformed = hasPaintTransform(node.style);
-  const rendered = table({
+  const rendered = markStreamContinuation(table({
     width: cssBoxWidth(node) ?? options.width,
     columns: inferColumns(rows),
     columnGap: 0,
     borderCollapse: node.style.borderCollapse,
     margin: transformed ? undefined : node.style.margin,
-    rows: rows.map((row) =>
+    rows: rows.map((row, rowIndex) =>
       row.children
         .filter((child): child is StyledElement => !("text" in child) && (child.node.tag === "td" || child.node.tag === "th"))
-        .map((cell) => ({
-          content: renderCellContent(cell, options, warnings),
-          padding: layoutPadding(cell, 4),
-          background: cell.style.background,
-          backgroundImage: backgroundImage(cell, options),
-          border: border(cell),
-          borderSides: cell.style.borderSides,
-          borderRadius: cell.style.borderRadius,
-          overflow: cell.style.overflow,
-          align: cell.style.textAlign,
-          valign: cell.style.verticalAlign === "middle" ? "middle" : "top"
-        }))
+        .map((cell) => {
+          const streamedBorders = streamedTableCellBorders(
+            cell,
+            rowIndex,
+            rows.length,
+            node.node.streamContinuation,
+            node.style.borderCollapse
+          );
+          return {
+            content: renderCellContent(cell, options, warnings),
+            padding: layoutPadding(cell, 4),
+            background: cell.style.background,
+            backgroundImage: backgroundImage(cell, options),
+            border: streamedBorders ? undefined : border(cell),
+            borderSides: streamedBorders ? streamedBorders.borderSides : cell.style.borderSides,
+            borderRadius: cell.style.borderRadius,
+            overflow: cell.style.overflow,
+            align: cell.style.textAlign,
+            valign: cell.style.verticalAlign === "middle" ? "middle" : "top"
+          };
+        })
     )
-  });
+  }), node);
   if (!transformed) return [rendered];
   const style = {
     width: cssBoxWidth(node) ?? options.width,
@@ -762,6 +771,65 @@ function renderTable(node: StyledElement, options: HtmlToBoxpdfOptions, warnings
     ...paintTransform(node.style)
   };
   return [vstack(style, rendered)];
+}
+
+function streamedTableCellBorders(
+  cell: StyledElement,
+  rowIndex: number,
+  rowCount: number,
+  continuation: HtmlElementNode["streamContinuation"],
+  borderCollapse: StyledElement["style"]["borderCollapse"]
+): { border: undefined; borderSides: StyledElement["style"]["borderSides"] } | undefined {
+  if (!continuation || borderCollapse !== "collapse") return undefined;
+  const all = border(cell);
+  const declared = {
+    top: cell.style.borderSides?.top ?? all,
+    right: cell.style.borderSides?.right ?? all,
+    bottom: cell.style.borderSides?.bottom ?? all,
+    left: cell.style.borderSides?.left ?? all
+  };
+  if (!continuation.first && rowIndex === 0 && !declared.top && declared.bottom) {
+    declared.top = declared.bottom;
+  }
+  if (!continuation.final && rowIndex === rowCount - 1) declared.bottom = undefined;
+  return { border: undefined, borderSides: declared };
+}
+
+function markStreamContinuation(rendered: BoxNode, node: StyledElement): BoxNode {
+  const continuation = node.node.streamContinuation;
+  if (!continuation || rendered.kind !== "vstack") return rendered;
+  const current = (
+    rendered as unknown as {
+      fragmentation?: {
+        kind: string;
+        headerCount?: number;
+        footerCount?: number;
+        rowDivider?: BoxNode;
+      };
+    }
+  ).fragmentation;
+  (
+    rendered as unknown as {
+      fragmentation?: {
+        kind: "continuation";
+        id: string;
+        final: boolean;
+        table?: { headerCount: number; footerCount: number; rowDivider?: BoxNode };
+      };
+    }
+  ).fragmentation = {
+    kind: "continuation",
+    ...continuation,
+    table:
+      current?.kind === "table"
+        ? {
+            headerCount: current.headerCount ?? 0,
+            footerCount: current.footerCount ?? 0,
+            rowDivider: current.rowDivider
+          }
+        : undefined
+  };
+  return rendered;
 }
 
 function renderCellContent(cell: StyledElement, options: HtmlToBoxpdfOptions, warnings: string[]): BoxNode {

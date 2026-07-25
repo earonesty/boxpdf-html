@@ -1,15 +1,13 @@
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { createRequire } from "node:module";
 import { dirname, extname, join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
+import { PDFDocument } from "pdf-lib";
 import { fontFamily, htmlToBoxpdf } from "../dist/index.js";
-import { loadFont, renderFlow } from "../../dist/index.js";
+import { loadFont, renderFlow } from "boxpdf";
 import { comparisons } from "./comparisons.mjs";
 
 const root = resolve(dirname(new URL(import.meta.url).pathname), "..");
-const coreRequire = createRequire(resolve(root, "../package.json"));
-const { PDFDocument } = coreRequire("pdf-lib");
 const tempRoot = mkdtempSync(join(tmpdir(), "boxpdf-html-visual-"));
 const failures = [];
 const filters = process.argv.slice(2).filter((filter) => filter !== "--");

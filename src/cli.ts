@@ -1,12 +1,29 @@
 #!/usr/bin/env node
 
-import { readFileSync, writeFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
-import { PDFDocument } from "pdf-lib";
-import { renderFlow, savePdf } from "boxpdf";
-import { fontFamily, htmlToBoxpdf } from "./index.js";
+import {
+  createReadStream,
+  createWriteStream,
+  mkdtempSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  writeFileSync
+} from "node:fs";
+import { pipeline } from "node:stream/promises";
+import { tmpdir } from "node:os";
+import { basename, dirname, join, resolve } from "node:path";
+import { PDFDocument, type PDFFont, type PDFImage } from "pdf-lib";
+import { nodeAdapter, renderFlow, savePdf } from "boxpdf";
+import { fontFamily, htmlToBoxpdf, streamHtmlToPdf, type HtmlStreamSource } from "./index.js";
 import { passwordFromEnvironment } from "./password-env.js";
-import { injectCss, loadFaces, loadImages, resolveAssetUrl } from "./render-file.js";
+import {
+  injectCss,
+  loadFaces,
+  loadImages,
+  loadImageUrls,
+  resolveAssetUrl,
+  type LoadedFaces
+} from "./render-file.js";
 
 interface CliOptions {
   input?: string;
@@ -23,6 +40,7 @@ interface CliOptions {
   debug: boolean;
   unsupportedCss: boolean;
   profile: boolean;
+  stream: boolean;
   passwordEnv?: string;
 }
 
@@ -47,12 +65,15 @@ Options:
   --debug                   Draw boxpdf debug overlays.
   --unsupported-css         Print aggregated unsupported CSS diagnostics.
   --profile                 Print render phase timings.
+  --stream                  Use bounded-memory two-pass HTML and PDF streaming.
   --password-env <name>     Encrypt with the password stored in this environment variable.
   -h, --help                Show this help.
 
 Examples:
   boxpdf-html invoice.html invoice.pdf
   boxpdf-html invoice.html invoice.pdf --css dist/tailwind.css
+  boxpdf-html archive.html archive.pdf --stream
+  type archive.html | boxpdf-html - archive.pdf --stream
   BOXPDF_PASSWORD='open me' boxpdf-html invoice.html invoice.pdf --password-env BOXPDF_PASSWORD
   boxpdf-html invoice.html invoice.pdf --font ./Inter.ttf --bold-font ./Inter-Bold.ttf
   boxpdf-html invoice.html invoice.pdf \\
@@ -81,6 +102,15 @@ async function main(): Promise<void> {
 
   const inputPath = options.input === "-" ? undefined : resolve(options.input);
   const baseUrl = options.baseUrl ? resolve(options.baseUrl) : inputPath ? dirname(inputPath) : process.cwd();
+  if (options.stream) {
+    await renderStreamed(
+      { ...options, input: options.input, output: options.output },
+      inputPath,
+      baseUrl,
+      password
+    );
+    return;
+  }
   const html = injectCss(readInput(options.input), options.css.map((path) => readFileSync(resolve(path), "utf8")));
   const pdf = await PDFDocument.create();
   const faces = await loadFaces(pdf, options, baseUrl);
@@ -118,7 +148,8 @@ function parseArgs(args: string[]): CliOptions {
     margin: 40,
     debug: false,
     unsupportedCss: false,
-    profile: false
+    profile: false,
+    stream: false
   };
 
   for (let i = 0; i < args.length; i += 1) {
@@ -175,6 +206,9 @@ function parseArgs(args: string[]): CliOptions {
       case "--profile":
         options.profile = true;
         break;
+      case "--stream":
+        options.stream = true;
+        break;
       case "--password-env":
         options.passwordEnv = next();
         break;
@@ -184,6 +218,88 @@ function parseArgs(args: string[]): CliOptions {
   }
 
   return options;
+}
+
+async function renderStreamed(
+  options: CliOptions & { input: string; output: string },
+  inputPath: string | undefined,
+  baseUrl: string,
+  password: string | undefined
+): Promise<void> {
+  const startedAt = performance.now();
+  const inputTemp = inputPath ? undefined : mkdtempSync(join(tmpdir(), "boxpdf-html-input-"));
+  const sourcePath = inputPath ?? join(inputTemp!, "stdin.htm");
+  const outputPath = resolve(options.output);
+  const outputTemp = mkdtempSync(join(dirname(outputPath), `.${basename(outputPath)}-`));
+  const partialPath = join(outputTemp, "output.pdf");
+
+  try {
+    if (!inputPath) await pipeline(process.stdin, createWriteStream(sourcePath));
+    const stylesheets = options.css.map((path) => readFileSync(resolve(path), "utf8"));
+    const openInput = fileSource(sourcePath, stylesheets);
+    const pdf = await PDFDocument.create();
+    const faces = await loadFaces(pdf, options, baseUrl);
+    let images = new Map<string, PDFImage>();
+    const result = await streamHtmlToPdf(openInput, nodeAdapter(createWriteStream(partialPath)), {
+      pdf,
+      font: faces.normal,
+      boldFont: faces.bold,
+      italicFont: faces.italic,
+      preloadFonts: faceFonts(faces),
+      resolveFont: fontFamily(faces.families),
+      resolveImage: ({ url }) => images.get(resolveAssetUrl(url, baseUrl)),
+      baseUrl,
+      width: options.width ?? Math.max(0, 612 - options.margin * 2),
+      margin: options.margin,
+      debug: options.debug,
+      warnings: true,
+      diagnostics: options.unsupportedCss ? { unsupportedCss: true, sampleLimit: 5 } : undefined,
+      encryption: password === undefined ? undefined : { password },
+      prepare: async (preflight) => {
+        images = await loadImageUrls(pdf, preflight.assetUrls, baseUrl, {
+          allowRemote: true,
+          onWarn: (message) => console.warn(`boxpdf-html: ${message}`)
+        });
+      }
+    });
+    for (const warning of result.warnings) console.warn(`boxpdf-html: ${warning}`);
+    if (options.unsupportedCss) printUnsupportedCss(result.diagnostics?.unsupportedCss ?? []);
+    renameSync(partialPath, outputPath);
+    if (options.profile) {
+      console.error(
+        `[profile] stream ${(performance.now() - startedAt).toFixed(1)}ms, ` +
+        `${result.pageCount} pages, ${result.preflight.htmlBytes} HTML bytes, ` +
+        `max ${result.dom.maxBufferedNodes} DOM nodes buffered`
+      );
+    }
+  } finally {
+    rmSync(outputTemp, { recursive: true, force: true });
+    if (inputTemp) rmSync(inputTemp, { recursive: true, force: true });
+  }
+}
+
+function fileSource(path: string, stylesheets: string[]): HtmlStreamSource {
+  const injected = stylesheets.length === 0
+    ? undefined
+    : new TextEncoder().encode(`<style>\n${stylesheets.join("\n")}\n</style>`);
+  return async function* openInput() {
+    for await (const chunk of createReadStream(path)) yield chunk;
+    if (injected) yield injected;
+  };
+}
+
+function faceFonts(faces: LoadedFaces): PDFFont[] {
+  const fonts = new Set<PDFFont>([faces.normal, faces.bold, faces.italic, faces.boldItalic]);
+  for (const family of Object.values(faces.families)) {
+    if ("embedder" in family) {
+      fonts.add(family);
+      continue;
+    }
+    for (const font of Object.values(family)) {
+      if (font) fonts.add(font);
+    }
+  }
+  return [...fonts];
 }
 
 function readInput(input: string): string {

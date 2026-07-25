@@ -21,6 +21,18 @@ npx tailwindcss -i ./tailwind.css -o ./dist/tailwind.css --minify
 npx boxpdf-html invoice.html invoice.pdf --css ./dist/tailwind.css
 ```
 
+For very large inputs, add `--stream`:
+
+```sh
+npx boxpdf-html archive.html archive.pdf --stream
+type archive.html | npx boxpdf-html - archive.pdf --stream
+```
+
+Streaming makes two bounded passes over the HTML: one for CSS, fonts, and
+images, then one for incremental layout and PDF output. Stdin is spooled to a
+temporary file so it can be reopened. The output replaces its destination only
+after a successful conversion. This path requires `boxpdf` 1.12.0 or newer.
+
 With PDF 2.0 AES-256 password encryption:
 
 ```sh
@@ -52,6 +64,7 @@ boxpdf-html input.html output.pdf --password-env BOXPDF_PASSWORD
 boxpdf-html input.html output.pdf --debug
 boxpdf-html input.html output.pdf --unsupported-css
 boxpdf-html input.html output.pdf --profile
+boxpdf-html input.html output.pdf --stream
 ```
 
 The CLI defaults to pdf-lib's built-in Helvetica family. Use real embedded fonts for production output when brand matching, unicode coverage, or exact metrics matter.
@@ -145,6 +158,37 @@ const bytes = await pdf.save();
 ```
 
 `width` is the CSS containing block width in PDF points. A US Letter page with 40pt margins has a 532pt content width, so `width: 532` is a good default.
+
+### `streamHtmlToPdf` — bounded large-document conversion
+
+`streamHtmlToPdf` accepts a function that reopens the HTML for each of its two
+passes and writes PDF bytes incrementally. Embed fonts before calling it; use
+`prepare` to embed images found by the resource preflight before output begins.
+
+```ts
+import { createReadStream, createWriteStream } from "node:fs";
+import { PDFDocument, StandardFonts } from "pdf-lib";
+import { nodeAdapter } from "boxpdf";
+import { streamHtmlToPdf } from "boxpdf-html";
+
+const pdf = await PDFDocument.create();
+const font = await pdf.embedFont(StandardFonts.Helvetica);
+
+const result = await streamHtmlToPdf(
+  () => createReadStream("archive.html"),
+  nodeAdapter(createWriteStream("archive.pdf")),
+  { pdf, font, width: 532, margin: 40 }
+);
+
+console.log(result.pageCount, result.dom.maxBufferedNodes);
+```
+
+Ordinary block wrappers and tables are released in bounded continuation
+fragments. Atomic layouts such as flex/grid, positioned or transformed
+containers, and single uninterrupted text nodes have explicit safety caps and
+fail with a useful error when they cannot be streamed safely. Selectors whose
+meaning depends on sibling position conservatively disable wrapper
+fragmentation.
 
 ## Fonts
 
