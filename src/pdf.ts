@@ -1,5 +1,5 @@
 import { PDFDocument, StandardFonts, type PDFFont } from "pdf-lib";
-import { PageSizes, pageContent, renderFlow, type EdgesInput, type PageSize } from "boxpdf";
+import { PageSizes, pageContent, renderFlow, type EdgesInput, type PageSize } from "@boxpdf/writer";
 import { fontFamily, type FontFamilyMap } from "./font.js";
 import { htmlToBoxpdf } from "./index.js";
 import type { HtmlToBoxpdfOptions } from "./types.js";
@@ -42,14 +42,14 @@ export interface HtmlToPdfOptions extends Omit<HtmlToBoxpdfOptions, "font" | "wi
  * the returned nodes, diagnostics — use `htmlToBoxpdf` + `renderFlow` directly.
  *
  * @example
- *   import { htmlToPdf } from "boxpdf-html";
+ *   import { htmlToPdf } from "@boxpdf/html-reader";
  *
  *   const bytes = await htmlToPdf("<h1>Invoice</h1><p>Thanks!</p>");
  *
  * @example
  *   import { PDFDocument } from "pdf-lib";
- *   import { loadFont, loadImage } from "boxpdf";
- *   import { htmlToPdf } from "boxpdf-html";
+ *   import { loadFont, loadImage } from "@boxpdf/writer";
+ *   import { htmlToPdf } from "@boxpdf/html-reader";
  *
  *   const pdf = await PDFDocument.create();
  *   const inter = await loadFont(pdf, interBytes);

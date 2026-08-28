@@ -5,57 +5,92 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const stage = join(root, ".pack");
-const npmCache = join(stage, ".npm-cache");
+const stageRoot = join(root, ".pack");
+const npmCache = join(stageRoot, ".npm-cache");
 const args = new Set(process.argv.slice(2));
+const rootPackage = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
+const writerVersion = process.env.BOXPDF_WRITER_VERSION ?? "^1.13.0";
+const packages = [
+  { name: "@boxpdf/html-reader", directory: "html-reader" },
+  { name: "boxpdf-html", directory: "boxpdf-html" },
+];
 
-const rootPkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
-const boxpdfVersion = process.env.BOXPDF_DEP_VERSION ?? rootPkg.dependencies?.boxpdf;
-
-if (!boxpdfVersion || boxpdfVersion.startsWith("file:")) {
-  throw new Error(`Refusing to prepare package with invalid boxpdf dependency: ${boxpdfVersion}`);
+if (writerVersion.startsWith("file:") || writerVersion.startsWith("npm:")) {
+  throw new Error(`Refusing to publish with invalid @boxpdf/writer dependency: ${writerVersion}`);
 }
 
-const publishPkg = {
-  ...rootPkg,
+const manifestFor = (name) => ({
+  ...rootPackage,
+  name,
   scripts: undefined,
   dependencies: {
-    ...rootPkg.dependencies,
-    boxpdf: boxpdfVersion
-  }
-};
-
-if (JSON.stringify(publishPkg).includes("\"file:")) {
-  throw new Error("Refusing to prepare package: publish manifest still contains a file: dependency");
-}
+    ...rootPackage.dependencies,
+    "@boxpdf/writer": writerVersion,
+  },
+});
 
 if (args.has("--verify")) {
-  console.log(`publish manifest dependency: boxpdf ${publishPkg.dependencies.boxpdf}`);
+  for (const target of packages) verifyManifest(manifestFor(target.name));
+  console.log(`publish manifests depend on @boxpdf/writer ${writerVersion}`);
   process.exit(0);
 }
 
-rmSync(stage, { recursive: true, force: true });
-mkdirSync(stage, { recursive: true });
+rmSync(stageRoot, { recursive: true, force: true });
+mkdirSync(stageRoot, { recursive: true });
 
-for (const path of ["README.md", "LICENSE", "dist"]) {
-  const source = join(root, path);
-  if (!existsSync(source)) continue;
-  cpSync(source, join(stage, path), { recursive: true });
+for (const target of packages) {
+  const directory = join(stageRoot, target.directory);
+  mkdirSync(directory, { recursive: true });
+  for (const path of ["README.md", "LICENSE", "dist"]) {
+    const source = join(root, path);
+    if (existsSync(source)) cpSync(source, join(directory, path), { recursive: true });
+  }
+  const manifest = manifestFor(target.name);
+  verifyManifest(manifest);
+  writeFileSync(join(directory, "package.json"), `${JSON.stringify(manifest, null, 2)}\n`);
 }
-writeFileSync(join(stage, "package.json"), `${JSON.stringify(publishPkg, null, 2)}\n`);
 
 if (args.has("--pack") || args.has("--publish")) {
-  const commandArgs = args.has("--publish") ? ["publish"] : ["pack"];
-  const result = spawnSync("npm", commandArgs, {
-    cwd: stage,
-    stdio: "inherit",
-    shell: false,
-    env: {
-      ...process.env,
-      npm_config_cache: npmCache
+  for (const target of packages) {
+    if (args.has("--publish") && isPublished(target.name, rootPackage.version)) {
+      console.log(`${target.name}@${rootPackage.version} is already published; skipping`);
+      continue;
     }
-  });
-  process.exit(result.status ?? 1);
+    const directory = join(stageRoot, target.directory);
+    const commandArgs = args.has("--publish")
+      ? ["publish", "--provenance", "--access", "public"]
+      : ["pack", "--pack-destination", stageRoot];
+    const result = spawnSync("npm", commandArgs, {
+      cwd: directory,
+      stdio: "inherit",
+      shell: false,
+      env: { ...process.env, npm_config_cache: npmCache },
+    });
+    if (result.status !== 0) process.exit(result.status ?? 1);
+  }
 }
 
-console.log(`prepared ${stage}`);
+console.log(`prepared ${packages.map((target) => target.name).join(" and ")} ${rootPackage.version}`);
+
+function verifyManifest(manifest) {
+  const serialized = JSON.stringify(manifest);
+  if (serialized.includes("\"file:")) {
+    throw new Error(`Refusing to prepare ${manifest.name}: manifest contains a file: dependency`);
+  }
+  if (manifest.dependencies.boxpdf) {
+    throw new Error(`Refusing to prepare ${manifest.name}: legacy boxpdf dependency remains`);
+  }
+}
+
+function isPublished(name, version) {
+  const result = spawnSync("npm", ["view", `${name}@${version}`, "version"], {
+    cwd: root,
+    encoding: "utf8",
+    shell: false,
+    env: { ...process.env, npm_config_cache: npmCache },
+  });
+  if (result.status === 0) return true;
+  if (`${result.stdout ?? ""}\n${result.stderr ?? ""}`.includes("E404")) return false;
+  process.stderr.write(result.stderr ?? result.stdout ?? "npm view failed\n");
+  process.exit(result.status ?? 1);
+}

@@ -2,7 +2,7 @@ import { generate, parse as parseCss, walk } from "css-tree";
 import { parseColor } from "./color.js";
 import { parseLength, parseLengthPercentage, parseLineHeight, parseLineHeightScale, parsePercentage } from "./units.js";
 import type { CssDeclaration, CssRule, CssStyle, CssTransform, Display, GridTrack, HtmlElementNode } from "./types.js";
-import type { Border, EdgesInput } from "boxpdf";
+import type { Border, EdgesInput } from "@boxpdf/writer";
 
 type CssNode = { type: string; [key: string]: unknown };
 export type DeclarationSet = { declarations: Partial<CssStyle>; importantDeclarations: Partial<CssStyle> };

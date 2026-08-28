@@ -15,9 +15,9 @@ import {
   type Node as BoxNode,
   type ParagraphItem,
   type TextRunStyle
-} from "boxpdf";
+} from "@boxpdf/writer";
 import type { GridTrack, HtmlElementNode, HtmlToBoxpdfOptions, RenderResult, StyledElement, StyledNode, StyledText } from "./types.js";
-import type { EdgesInput } from "boxpdf";
+import type { EdgesInput } from "@boxpdf/writer";
 
 export function renderStyledTree(root: StyledElement, options: HtmlToBoxpdfOptions): RenderResult {
   const warnings: string[] = [];

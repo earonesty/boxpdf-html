@@ -1,6 +1,6 @@
 import type { CssRule, CssStyle, HtmlElementNode, HtmlNode, StyledElement, StyledNode } from "./types.js";
 import { parseStyleAttribute, ruleDeclarationsFor, type UnsupportedCssSink } from "./css.js";
-import type { EdgesInput } from "boxpdf";
+import type { EdgesInput } from "@boxpdf/writer";
 
 const blockTags = new Set([
   "address", "article", "aside", "blockquote", "body", "div", "dl", "fieldset", "figcaption",

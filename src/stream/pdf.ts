@@ -5,8 +5,8 @@ import {
   type Node as BoxNode,
   type PageSize,
   type StreamFlowOptions
-} from "boxpdf";
-import * as boxpdfCapabilities from "boxpdf";
+} from "@boxpdf/writer";
+import * as boxpdfCapabilities from "@boxpdf/writer";
 import { parseStylesheets } from "../css.js";
 import { createDiagnostics, type HtmlDiagnosticsRecorder } from "../diagnostics.js";
 import { renderStyledTree } from "../render.js";
@@ -70,7 +70,7 @@ export async function streamHtmlToPdf(
     ).flowContinuation !== "function"
   ) {
     throw new Error(
-      "streamHtmlToPdf requires boxpdf 1.12.0 or newer; upgrade boxpdf before using --stream"
+      "streamHtmlToPdf requires @boxpdf/writer 1.12.0 or newer; upgrade the writer before using --stream"
     );
   }
   const preflight = await preflightHtml(openInput());

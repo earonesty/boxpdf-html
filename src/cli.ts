@@ -13,7 +13,7 @@ import { pipeline } from "node:stream/promises";
 import { tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import { PDFDocument, type PDFFont, type PDFImage } from "pdf-lib";
-import { nodeAdapter, renderFlow, savePdf } from "boxpdf";
+import { nodeAdapter, renderFlow, savePdf } from "@boxpdf/writer";
 import { fontFamily, htmlToBoxpdf, streamHtmlToPdf, type HtmlStreamSource } from "./index.js";
 import { passwordFromEnvironment } from "./password-env.js";
 import {

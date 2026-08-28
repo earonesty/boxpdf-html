@@ -1,10 +1,14 @@
-# boxpdf-html
+# @boxpdf/html-reader
 
-Readable HTML-to-PDF rendering built on [`boxpdf`](https://github.com/earonesty/boxpdf). It is for invoices, receipts, reports, emails, and other authored document HTML where a useful static PDF matters more than browser pixel emulation.
+Readable HTML-to-PDF rendering built on [`@boxpdf/writer`](https://github.com/earonesty/boxpdf). It is for invoices, receipts, reports, emails, and other authored document HTML where a useful static PDF matters more than browser pixel emulation.
 
 ```sh
-npm install boxpdf-html boxpdf pdf-lib
+npm install @boxpdf/html-reader @boxpdf/writer pdf-lib
 ```
+
+The original `boxpdf-html` package and `boxpdf-html` command remain supported. They are published
+from the same build and at the same version as `@boxpdf/html-reader`. New projects should use the
+scoped package; existing projects do not need to change.
 
 ## CLI
 
@@ -13,6 +17,8 @@ Render an HTML file directly:
 ```sh
 npx boxpdf-html invoice.html invoice.pdf
 ```
+
+The scoped package also provides `html-reader` as a shorter command name.
 
 With generated Tailwind CSS:
 
@@ -94,7 +100,7 @@ The server runs no JavaScript and (by default) makes no network requests. `outpu
 `htmlToPdf(html, options?)` is the simplest path: it creates the document, embeds fonts, renders, and returns the PDF bytes. Fonts default to the built-in Helvetica family, so the minimal call needs no setup.
 
 ```ts
-import { htmlToPdf } from "boxpdf-html";
+import { htmlToPdf } from "@boxpdf/html-reader";
 
 const bytes = await htmlToPdf("<h1>Invoice</h1><p>Thanks for your order.</p>");
 ```
@@ -104,8 +110,8 @@ Pass embedded fonts (via `loadFont`) and a `resolveImage` callback for productio
 ```ts
 import { readFile } from "node:fs/promises";
 import { PDFDocument } from "pdf-lib";
-import { loadFont, loadImage } from "boxpdf";
-import { htmlToPdf } from "boxpdf-html";
+import { loadFont, loadImage } from "@boxpdf/writer";
+import { htmlToPdf } from "@boxpdf/html-reader";
 
 const pdf = await PDFDocument.create();
 const inter = await loadFont(pdf, await readFile("Inter-Regular.ttf"));
@@ -130,8 +136,8 @@ Options: `font` / `boldFont` / `italicFont` / `boldItalicFont` (default to Helve
 ```ts
 import { readFile } from "node:fs/promises";
 import { PDFDocument } from "pdf-lib";
-import { loadFont, loadImage, renderFlow } from "boxpdf";
-import { fontFamily, htmlToBoxpdf } from "boxpdf-html";
+import { loadFont, loadImage, renderFlow } from "@boxpdf/writer";
+import { fontFamily, htmlToBoxpdf } from "@boxpdf/html-reader";
 
 const html = await readFile("invoice.html", "utf8");
 const pdf = await PDFDocument.create();
@@ -168,8 +174,8 @@ passes and writes PDF bytes incrementally. Embed fonts before calling it; use
 ```ts
 import { createReadStream, createWriteStream } from "node:fs";
 import { PDFDocument, StandardFonts } from "pdf-lib";
-import { nodeAdapter } from "boxpdf";
-import { streamHtmlToPdf } from "boxpdf-html";
+import { nodeAdapter } from "@boxpdf/writer";
+import { streamHtmlToPdf } from "@boxpdf/html-reader";
 
 const pdf = await PDFDocument.create();
 const font = await pdf.embedFont(StandardFonts.Helvetica);

@@ -1,4 +1,11 @@
-import type { BorderSides, EdgesInput, Node as BoxNode, Overflow, Position, RGB } from "boxpdf";
+import type {
+  BorderSides,
+  EdgesInput,
+  Node as BoxNode,
+  Overflow,
+  Position,
+  RGB,
+} from "@boxpdf/writer";
 import type { PDFImage, PDFFont } from "pdf-lib";
 
 export interface HtmlToBoxpdfOptions {

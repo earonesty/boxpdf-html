@@ -80,6 +80,6 @@ describe("mcp dispatch — docs & resources", () => {
 
   it("rewrites template imports to the published package", async () => {
     const read = (await call("resources/read", { uri: "boxpdf://templates/receipt" })) as any;
-    expect(read.result.contents[0].text).toMatch(/from "boxpdf"/);
+    expect(read.result.contents[0].text).toMatch(/from "@boxpdf\/writer"/);
   });
 });

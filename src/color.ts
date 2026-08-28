@@ -1,4 +1,4 @@
-import type { RGB } from "boxpdf";
+import type { RGB } from "@boxpdf/writer";
 
 const namedColors: Record<string, string> = {
   black: "#000000",

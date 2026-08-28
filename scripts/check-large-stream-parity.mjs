@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "n
 import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import { PDFDocument, StandardFonts } from "pdf-lib";
-import { renderFlow } from "boxpdf";
+import { renderFlow } from "@boxpdf/writer";
 import { htmlToBoxpdf, streamHtmlToPdf } from "../dist/index.js";
 
 const source = `<style>

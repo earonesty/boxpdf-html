@@ -1,14 +1,15 @@
 {
-  "name": "boxpdf-html",
+  "name": "@boxpdf/html-reader",
   "version": "1.6.0",
   "mcpName": "io.github.earonesty/boxpdf-html",
-  "description": "Readable HTML-to-PDF translator built on boxpdf.",
+  "description": "Readable HTML-to-PDF translator built on @boxpdf/writer.",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
-    "boxpdf-html": "dist/cli.js"
+    "boxpdf-html": "dist/cli.js",
+    "html-reader": "dist/cli.js"
   },
   "exports": {
     ".": {
@@ -39,6 +40,7 @@
     "profile:render": "pnpm run build && node scripts/render-boxpdf-profile.mjs",
     "prepublishOnly": "pnpm run typecheck && pnpm run test && pnpm run build && node scripts/prepare-publish.mjs --verify",
     "pack:release": "pnpm run typecheck && pnpm run test && pnpm run build && node scripts/prepare-publish.mjs --pack",
+    "package:check": "pnpm run build && node scripts/check-package-aliases.mjs",
     "publish:release": "pnpm run typecheck && pnpm run test && pnpm run build && node scripts/prepare-publish.mjs --publish"
   },
   "keywords": [
@@ -62,7 +64,7 @@
     "url": "https://github.com/earonesty/boxpdf-html/issues"
   },
   "dependencies": {
-    "boxpdf": "^1.12.0",
+    "@boxpdf/writer": "npm:boxpdf@^1.13.0",
     "css-tree": "^3.1.0",
     "parse5": "^8.0.0",
     "parse5-sax-parser": "^8.0.0",

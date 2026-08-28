@@ -4,7 +4,7 @@ import { dirname, extname, join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { PDFDocument } from "pdf-lib";
 import { fontFamily, htmlToBoxpdf } from "../dist/index.js";
-import { loadFont, renderFlow } from "boxpdf";
+import { loadFont, renderFlow } from "@boxpdf/writer";
 import { comparisons } from "./comparisons.mjs";
 
 const root = resolve(dirname(new URL(import.meta.url).pathname), "..");

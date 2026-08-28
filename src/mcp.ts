@@ -3,7 +3,7 @@ import { createRequire } from "node:module";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { PDFDocument } from "pdf-lib";
-import { PageSizes, pageContent, renderFlow, type PageSize } from "boxpdf";
+import { PageSizes, pageContent, renderFlow, type PageSize } from "@boxpdf/writer";
 import { fontFamily, htmlToBoxpdf } from "./index.js";
 import { injectCss, loadFaces, loadImages, resolveAssetUrl } from "./render-file.js";
 
@@ -32,20 +32,21 @@ interface JsonRpcRequest {
 }
 
 // ---------------------------------------------------------------------------
-// boxpdf package docs (read from node_modules/boxpdf — it ships README + templates)
+// Writer package docs (it ships README + templates).
 // ---------------------------------------------------------------------------
 
 function coreDir(): string | undefined {
-  // `boxpdf`'s `exports` map blocks `require.resolve("boxpdf/package.json")`,
+  // The writer's `exports` map blocks resolving package.json directly,
   // so resolve the entry point and climb to the package root.
   try {
     const require = createRequire(import.meta.url);
-    let dir = dirname(require.resolve("boxpdf"));
+    let dir = dirname(require.resolve("@boxpdf/writer"));
     for (let i = 0; i < 8; i += 1) {
       const pkg = resolve(dir, "package.json");
       if (existsSync(pkg)) {
         try {
-          if ((JSON.parse(readFileSync(pkg, "utf8")) as { name?: string }).name === "boxpdf") return dir;
+          const name = (JSON.parse(readFileSync(pkg, "utf8")) as { name?: string }).name;
+          if (name === "@boxpdf/writer" || name === "boxpdf") return dir;
         } catch {
           // keep climbing
         }
@@ -73,7 +74,7 @@ function coreTemplate(name: string): string | undefined {
   const path = resolve(dir, "templates", `${name}.ts`);
   if (!existsSync(path)) return undefined;
   return readFileSync(path, "utf8")
-    .replaceAll('from "../src/index.js"', 'from "boxpdf"')
+    .replaceAll('from "../src/index.js"', 'from "@boxpdf/writer"')
     .replaceAll(`new URL("../fixtures/${name}.pdf", import.meta.url)`, `new URL("./${name}.pdf", import.meta.url)`)
     .replaceAll(`wrote fixtures/${name}.pdf`, `wrote ${name}.pdf`);
 }
@@ -296,7 +297,7 @@ const DOCS: Record<DocTopic, string> = {
 Shortest path to bytes — no pdf-lib import, no manual save:
 
 \`\`\`ts
-import { cleanTheme, flowToPdf, hline, hstack, standardFonts, text, vstack } from "boxpdf";
+import { cleanTheme, flowToPdf, hline, hstack, standardFonts, text, vstack } from "@boxpdf/writer";
 
 const bytes = await flowToPdf(async (pdf) => {
   const { font, bold } = await standardFonts(pdf); // built-in Helvetica family
@@ -367,15 +368,15 @@ All \`embedFont\`/\`embedPng\`/\`embedJpg\` calls must finish before \`streamFlo
 One call to bytes (fonts default to Helvetica):
 
 \`\`\`ts
-import { htmlToPdf } from "boxpdf-html";
+import { htmlToPdf } from "@boxpdf/html-reader";
 const bytes = await htmlToPdf("<h1>Invoice</h1><p>Thanks!</p>");
 \`\`\`
 
 For the nodes, warnings, and diagnostics (full control), use \`htmlToBoxpdf\` + \`renderFlow\`:
 
 \`\`\`ts
-import { fontFamily, htmlToBoxpdf } from "boxpdf-html";
-import { renderFlow } from "boxpdf";
+import { fontFamily, htmlToBoxpdf } from "@boxpdf/html-reader";
+import { renderFlow } from "@boxpdf/writer";
 const result = htmlToBoxpdf(html, { font, boldFont, resolveFont: fontFamily({ Inter: { normal: font, bold: boldFont } }), width: 532 });
 await renderFlow(pdf, result.nodes, { margin: 40 });
 \`\`\`
@@ -387,7 +388,7 @@ await renderFlow(pdf, result.nodes, { margin: 40 });
 Both boxpdf and \`boxpdf/inter\` run on Workers without \`nodejs_compat\`. No headless browser, WASM, or native deps.
 
 \`\`\`ts
-import { cleanTheme, flowToPdf, standardFonts, text } from "boxpdf";
+import { cleanTheme, flowToPdf, standardFonts, text } from "@boxpdf/writer";
 
 export default {
   async fetch() {

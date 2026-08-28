@@ -20,7 +20,7 @@ import { parseHtml } from "./dom.js";
 import { renderStyledTree } from "./render.js";
 import { computeStyles, defaultStyle } from "./style.js";
 import type { HtmlNode, HtmlProfileEvent, HtmlToBoxpdfOptions, RenderResult, StyledNode } from "./types.js";
-import type { Node as BoxNode } from "boxpdf";
+import type { Node as BoxNode } from "@boxpdf/writer";
 
 export function htmlToBoxpdf(html: string, options: HtmlToBoxpdfOptions): RenderResult {
   const startedAt = now();

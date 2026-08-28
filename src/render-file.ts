@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { isAbsolute, resolve } from "node:path";
 import { PDFDocument, StandardFonts, type PDFFont, type PDFImage } from "pdf-lib";
-import { loadFont, loadImage } from "boxpdf";
+import { loadFont, loadImage } from "@boxpdf/writer";
 import { fontFamily, type FontFamilyMap } from "./font.js";
 
 /**
