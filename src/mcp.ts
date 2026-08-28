@@ -318,7 +318,7 @@ const bytes = await flowToPdf(async (pdf) => {
 
 - Built-in (no bytes): \`const fonts = await standardFonts(pdf)\` → drop into any theme.
 - Custom TTF/OTF: \`const font = await loadFont(pdf, source)\` where source is bytes, a URL, a data URL, or a base64 string.
-- Bundled Inter: \`import { embedInter } from "boxpdf/inter"; const { font, bold } = await embedInter(pdf);\`
+- Bundled Inter: \`import { embedInter } from "@boxpdf/writer/inter"; const { font, bold } = await embedInter(pdf);\`
 - Tabular figures for money columns: \`loadFont(pdf, bytes, { features: { tnum: true } })\` or \`embedInter(pdf, { tabularFigures: true })\`.
 - Generate a bundled font module: \`npx boxpdf font add ./Acme-Regular.ttf=regular --out src/fonts/acme.ts\`.`,
 
