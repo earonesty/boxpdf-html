@@ -15,7 +15,7 @@ scoped package; existing projects do not need to change.
 Render an HTML file directly:
 
 ```sh
-npx boxpdf-html invoice.html invoice.pdf
+npx @boxpdf/html-reader invoice.html invoice.pdf
 ```
 
 The scoped package also provides `html-reader` as a shorter command name.
@@ -24,14 +24,14 @@ With generated Tailwind CSS:
 
 ```sh
 npx tailwindcss -i ./tailwind.css -o ./dist/tailwind.css --minify
-npx boxpdf-html invoice.html invoice.pdf --css ./dist/tailwind.css
+npx @boxpdf/html-reader invoice.html invoice.pdf --css ./dist/tailwind.css
 ```
 
 For very large inputs, add `--stream`:
 
 ```sh
-npx boxpdf-html archive.html archive.pdf --stream
-type archive.html | npx boxpdf-html - archive.pdf --stream
+npx @boxpdf/html-reader archive.html archive.pdf --stream
+type archive.html | npx @boxpdf/html-reader - archive.pdf --stream
 ```
 
 Streaming makes two bounded passes over the HTML: one for CSS, fonts, and
@@ -43,7 +43,7 @@ With PDF 2.0 AES-256 password encryption:
 
 ```sh
 BOXPDF_PASSWORD='open me' \
-  npx boxpdf-html invoice.html invoice.pdf --password-env BOXPDF_PASSWORD
+  npx @boxpdf/html-reader invoice.html invoice.pdf --password-env BOXPDF_PASSWORD
 ```
 
 `--password-env` accepts an environment-variable name. The variable must be
@@ -53,7 +53,7 @@ argument, which keeps it out of the command line and process listing.
 With custom fonts and local images:
 
 ```sh
-npx boxpdf-html invoice.html invoice.pdf \
+npx @boxpdf/html-reader invoice.html invoice.pdf \
   --font ./Inter-Regular.ttf \
   --bold-font ./Inter-Bold.ttf \
   --font-family 'Inter=normal:Inter-Regular.ttf,bold:Inter-Bold.ttf'
@@ -62,15 +62,15 @@ npx boxpdf-html invoice.html invoice.pdf \
 Useful flags:
 
 ```sh
-boxpdf-html <input.html> <output.pdf>
-boxpdf-html - <output.pdf>                  # read HTML from stdin
-boxpdf-html input.html output.pdf --css app.css
-boxpdf-html input.html output.pdf --base-url ./public
-boxpdf-html input.html output.pdf --password-env BOXPDF_PASSWORD
-boxpdf-html input.html output.pdf --debug
-boxpdf-html input.html output.pdf --unsupported-css
-boxpdf-html input.html output.pdf --profile
-boxpdf-html input.html output.pdf --stream
+html-reader <input.html> <output.pdf>
+html-reader - <output.pdf>                  # read HTML from stdin
+html-reader input.html output.pdf --css app.css
+html-reader input.html output.pdf --base-url ./public
+html-reader input.html output.pdf --password-env BOXPDF_PASSWORD
+html-reader input.html output.pdf --debug
+html-reader input.html output.pdf --unsupported-css
+html-reader input.html output.pdf --profile
+html-reader input.html output.pdf --stream
 ```
 
 The CLI defaults to pdf-lib's built-in Helvetica family. Use real embedded fonts for production output when brand matching, unicode coverage, or exact metrics matter.
@@ -80,7 +80,7 @@ The CLI defaults to pdf-lib's built-in Helvetica family. Use real embedded fonts
 `boxpdf-html mcp` is a stdio [MCP](https://modelcontextprotocol.io) server for AI agents. It's batteries-included: an `html_to_pdf` tool plus the full boxpdf library docs, so an agent never has to add a second server.
 
 ```sh
-claude mcp add boxpdf-html -- npx -y boxpdf-html mcp
+claude mcp add boxpdf-html -- npx -y @boxpdf/html-reader mcp
 ```
 
 **Tools**
@@ -278,7 +278,7 @@ Build CSS:
 
 ```sh
 npx tailwindcss -i ./tailwind-input.css -o ./tailwind-output.css --minify
-npx boxpdf-html invoice.html invoice.pdf --css ./tailwind-output.css
+npx @boxpdf/html-reader invoice.html invoice.pdf --css ./tailwind-output.css
 ```
 
 Supported Tailwind patterns include common spacing, color, text, border, radius, width/height, flex, grid, table, image, and arbitrary-value utilities. Unsupported utility declarations can be reported with `--unsupported-css` or `diagnostics: { unsupportedCss: true }`.
