@@ -1,6 +1,6 @@
 {
   "name": "@boxpdf/html-reader",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "mcpName": "io.github.earonesty/boxpdf-html",
   "description": "Readable HTML-to-PDF translator built on @boxpdf/writer.",
   "type": "module",
