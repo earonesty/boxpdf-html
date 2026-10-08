@@ -37,7 +37,7 @@ function renderNode(node: StyledNode, options: HtmlToBoxpdfOptions, warnings: st
     return rendered ? [rendered] : [];
   }
   if (node.node.tag === "br") return [text("", textOptions({ style: node.style } as StyledText, options))];
-  if (node.node.tag === "hr") return [hline({ color: node.style.borderColor ?? { r: 0, g: 0, b: 0 }, thickness: node.style.borderWidth ?? 1 })];
+  if (node.node.tag === "hr") return [renderRule(node)];
   if (node.node.tag === "ul" || node.node.tag === "ol") return [renderList(node, options, warnings)];
   if (node.node.tag === "table") return renderTable(node, options, warnings);
   if (node.style.display === "grid" || node.style.display === "inline-grid") return [renderGrid(node, options, warnings)];
@@ -732,16 +732,18 @@ function renderTable(node: StyledElement, options: HtmlToBoxpdfOptions, warnings
     return [renderBlock(node, options, warnings)];
   }
   const transformed = hasPaintTransform(node.style);
+  const tableWidth = cssBoxWidth(node) ?? options.width;
+  const columnWidths = resolveTableColumns(node, rows, tableWidth);
   const rendered = markStreamContinuation(table({
-    width: cssBoxWidth(node) ?? options.width,
-    columns: inferColumns(rows),
+    width: tableWidth,
+    columns: columnWidths.map((width) => ({ width: width ?? ("1fr" as const) })),
     columnGap: 0,
     borderCollapse: node.style.borderCollapse,
     margin: transformed ? undefined : node.style.margin,
     rows: rows.map((row, rowIndex) =>
       row.children
         .filter((child): child is StyledElement => !("text" in child) && (child.node.tag === "td" || child.node.tag === "th"))
-        .map((cell) => {
+        .map((cell, columnIndex) => {
           const streamedBorders = streamedTableCellBorders(
             cell,
             rowIndex,
@@ -750,7 +752,7 @@ function renderTable(node: StyledElement, options: HtmlToBoxpdfOptions, warnings
             node.style.borderCollapse
           );
           return {
-            content: renderCellContent(cell, options, warnings),
+            content: constrainCellContent(renderCellContent(cell, options, warnings), cell, columnWidths[columnIndex]),
             padding: layoutPadding(cell, 4),
             background: cell.style.background,
             backgroundImage: backgroundImage(cell, options),
@@ -862,14 +864,60 @@ function isAtomicInlineContainer(node: StyledElement): boolean {
   return node.style.display === "inline-block" || node.style.display === "inline-flex" || node.style.display === "inline-grid";
 }
 
-function inferColumns(rows: StyledElement[]): Array<{ width: `${number}fr` }> {
-  const count = Math.max(
-    1,
-    ...rows.map((row) =>
-      row.children.filter((child) => !("text" in child) && (child.node.tag === "td" || child.node.tag === "th")).length
-    )
-  );
-  return Array.from({ length: count }, () => ({ width: "1fr" as const }));
+/**
+ * Column widths in points, from `<col>` widths or the first cell in each column that declares one.
+ * With a known table width, columns without a width share what is left and the result always fills
+ * the table, as CSS does. `undefined` entries become `1fr` when the table width is unknown.
+ */
+function resolveTableColumns(table: StyledElement, rows: StyledElement[], tableWidth: number | undefined): Array<number | undefined> {
+  const cellRows = rows.map(rowCells);
+  const count = Math.max(1, ...cellRows.map((cells) => cells.length));
+  const cols = tableCols(table);
+  const declared = Array.from({ length: count }, (_, index) => {
+    const col = cols[index];
+    if (col?.style.width !== undefined) return col.style.width;
+    const cell = cellRows.map((cells) => cells[index]).find((candidate) => candidate?.style.width !== undefined);
+    return cell ? cellBoxWidth(cell) : undefined;
+  });
+  if (tableWidth === undefined) return declared;
+  const fixed = declared.reduce<number>((sum, width) => sum + (width ?? 0), 0);
+  const open = declared.filter((width) => width === undefined).length;
+  if (open > 0) {
+    const share = Math.max(0, tableWidth - fixed) / open;
+    return declared.map((width) => width ?? share);
+  }
+  const scale = fixed > 0 ? tableWidth / fixed : 1;
+  return declared.map((width) => (width ?? 0) * scale);
+}
+
+/** A cell's declared width plus the padding and borders the table draws around it. */
+function cellBoxWidth(cell: StyledElement): number {
+  const width = cell.style.width ?? 0;
+  if (cell.style.boxSizing === "border-box") return width;
+  const inset = edges(layoutPadding(cell, 4));
+  return width + inset.left + inset.right;
+}
+
+function rowCells(row: StyledElement): StyledElement[] {
+  return row.children.filter((child): child is StyledElement => !("text" in child) && (child.node.tag === "td" || child.node.tag === "th"));
+}
+
+function tableCols(table: StyledElement): StyledElement[] {
+  return table.children.flatMap((child) => {
+    if ("text" in child) return [];
+    if (child.node.tag === "col") return [child];
+    if (child.node.tag === "colgroup") {
+      return child.children.filter((col): col is StyledElement => !("text" in col) && col.node.tag === "col");
+    }
+    return [];
+  });
+}
+
+/** Wraps cell content to its column, like grid items, so long text does not run into the next column. */
+function constrainCellContent(content: BoxNode, cell: StyledElement, columnWidth: number | undefined): BoxNode {
+  if (columnWidth === undefined) return content;
+  const inset = edges(layoutPadding(cell, 4));
+  return constrainFlowChild(content, Math.max(0, columnWidth - inset.left - inset.right));
 }
 
 function cssBoxWidth(node: StyledElement): number | undefined {
@@ -1007,6 +1055,16 @@ function shouldWrap(style: StyledText["style"]): boolean {
 
 function preservesWhitespace(style: StyledText["style"]): boolean {
   return style.whiteSpace === "pre" || style.whiteSpace === "pre-wrap";
+}
+
+/** An `hr` draws its top border (or its border shorthand) and keeps its margins. */
+function renderRule(node: StyledElement): BoxNode {
+  const rule = node.style.borderSides?.top ?? border(node);
+  return hline({
+    color: rule?.color ?? node.style.borderColor ?? { r: 0, g: 0, b: 0 },
+    thickness: rule?.width ?? node.style.borderWidth ?? 1,
+    margin: node.style.margin
+  });
 }
 
 function border(node: StyledElement) {

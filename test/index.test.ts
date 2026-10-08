@@ -1,6 +1,14 @@
 import { describe, expect, it, beforeAll } from "vitest";
 import { PDFDocument, StandardFonts, type PDFImage, type PDFFont } from "pdf-lib";
+import { measure, type Node as BoxNode } from "@boxpdf/writer";
 import { fontFamily, htmlToBoxpdf, parseHtml } from "../src/index.js";
+
+function tableCellWidths(tableNode: BoxNode | undefined): Array<number | undefined> {
+  if (tableNode?.kind !== "vstack") throw new Error("expected table");
+  const row = tableNode.children[0];
+  if (row?.kind !== "hstack") throw new Error("expected row");
+  return row.children.map((cell) => (cell.kind === "vstack" ? cell.style.width : undefined));
+}
 
 let font: PDFFont;
 let bold: PDFFont;
@@ -306,6 +314,56 @@ c</p>`,
     expect(firstCell.style.borderSides).toMatchObject({
       top: { width: 0.75 },
       left: { width: 0.75 }
+    });
+  });
+
+  it("sizes table columns from declared cell widths and gives the rest to undeclared columns", () => {
+    const result = htmlToBoxpdf(
+      `<table style="width:400px"><tr><td style="width:25%;padding:0">A</td><td style="padding:0">B</td><td style="width:60px;padding:0">C</td></tr></table>`,
+      { font, width: 532 }
+    );
+    expect(tableCellWidths(result.nodes[0])).toEqual([75, 180, 45]);
+  });
+
+  it("sizes table columns from col elements", () => {
+    const result = htmlToBoxpdf(
+      `<table style="width:400px"><colgroup><col style="width:100px"><col></colgroup><tr><td>A</td><td>B</td></tr></table>`,
+      { font, width: 532 }
+    );
+    expect(tableCellWidths(result.nodes[0])).toEqual([75, 225]);
+  });
+
+  it("wraps long cell text inside its column", () => {
+    const longText = "Implementation and onboarding for three entities including data migration";
+    const result = htmlToBoxpdf(
+      `<table style="width:400px"><tr><td style="width:30%">${longText}</td><td>B</td></tr></table>`,
+      { font, width: 532 }
+    );
+    const tableNode = result.nodes[0];
+    if (tableNode?.kind !== "vstack") throw new Error("expected table");
+    const row = tableNode.children[0];
+    if (row?.kind !== "hstack") throw new Error("expected row");
+    const cell = row.children[0];
+    if (cell?.kind !== "vstack") throw new Error("expected cell");
+    expect(cell.style.width).toBe(98);
+    const content = cell.children[0];
+    if (content?.kind !== "hstack") throw new Error("expected aligned content");
+    const paragraphNode = content.children[0];
+    if (paragraphNode?.kind !== "paragraph") throw new Error("expected paragraph");
+    expect(paragraphNode.props.width).toBe(90);
+    expect(measure(cell, 532).height).toBeGreaterThan(40);
+  });
+
+  it("keeps hr margins and draws its top border", () => {
+    const result = htmlToBoxpdf(
+      `<hr style="margin:24px 0;border:0;border-top:2px solid #cccccc">`,
+      { font, width: 532 }
+    );
+    expect(result.nodes[0]).toMatchObject({
+      kind: "hline",
+      thickness: 1.5,
+      margin: { top: 18, bottom: 18 },
+      color: { r: 0.8, g: 0.8, b: 0.8 }
     });
   });
 

@@ -8,6 +8,9 @@ const blockTags = new Set([
   "nav", "ol", "p", "pre", "section", "table", "tbody", "td", "tfoot", "th", "thead", "tr", "ul"
 ]);
 
+// Table parts size from the table's columns, not from the containing block.
+const tablePartTags = new Set(["tbody", "td", "tfoot", "th", "thead", "tr"]);
+
 export function computeStyles(
   root: HtmlElementNode,
   rules: CssRule[],
@@ -60,6 +63,7 @@ function styleElement(
     (style.display === "block" || style.display === "flex" || style.display === "grid") &&
     parentDisplay !== "flex" &&
     parentDisplay !== "grid" &&
+    !tablePartTags.has(node.tag) &&
     style.width === undefined &&
     containingWidth !== undefined
   ) {
